@@ -1,0 +1,934 @@
+import { useState, useCallback, useEffect } from 'react'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const pf = (v) => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n }
+const fN = (v, d = 2) => typeof v === 'number' && !isNaN(v)
+  ? v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—'
+const eur = (v) => fN(v) + '\u00a0€'
+const usd = (v) => fN(v) + '\u00a0$'
+const pct = (v) => fN(v) + '%'
+const f4  = (v) => fN(v, 4)
+const todayStr = () => new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+// ── Level metadata ────────────────────────────────────────────────────────────
+const LM = {
+  '3+': { color: '#ef4444', bg: '#fef2f2', bgD: '#2d1515', border: '#fecaca', borderD: '#7f1d1d', label: 'CRASH' },
+  '3':  { color: '#f97316', bg: '#fff7ed', bgD: '#2d1a0a', border: '#fed7aa', borderD: '#7c2d12', label: 'PLENO' },
+  '2':  { color: '#eab308', bg: '#fefce8', bgD: '#292100', border: '#fde68a', borderD: '#713f12', label: 'REFUERZO' },
+  '0-1':{ color: '#22c55e', bg: '#f0fdf4', bgD: '#0f1f13', border: '#bbf7d0', borderD: '#14532d', label: 'BASE' },
+  '-1': { color: '#3b82f6', bg: '#eff6ff', bgD: '#0f172a', border: '#bfdbfe', borderD: '#1e3a5f', label: 'EUFORIA' },
+}
+
+// ── Profiles ──────────────────────────────────────────────────────────────────
+const PROFILES = {
+  conservador: { label: 'Conservador', multN3p: 2,   multN3: 2,   multN2: 1.5, multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Reserva pequeña o horizonte corto' },
+  moderado:    { label: 'Moderado',    multN3p: 4,   multN3: 3,   multN2: 2,   multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Equilibrio riesgo/oportunidad — recomendado' },
+  agresivo:    { label: 'Agresivo',    multN3p: 6,   multN3: 4,   multN2: 2,   multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Reserva amplia y horizonte largo' },
+  personalizado:{ label: 'Personalizado', multN3p: 4, multN3: 3,  multN2: 2,   multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Configura tus propios valores' },
+}
+
+const DEF_CFG = {
+  activo: '',
+  dcaBase: 500,
+  multReserva: 8,
+  rationWarn: 50,
+  rationBrake: 25,
+  vixPanic: 30, vixEuph: 13,
+  vstPanic: 30, vstEuph: 13,
+  ddMod: -10, ddSev: -20, ddEuph: -0.5,
+  profile: 'moderado',
+  ...PROFILES.moderado,
+}
+
+// ── Protocol logic ────────────────────────────────────────────────────────────
+function calc(mktRaw, portRaw, cfg) {
+  const { urthPrice, sma200, drawdown, vix, vstoxx, hasVstoxx } = mktRaw
+  const { reserva, hasReserva, navEur, capital, parts } = portRaw
+  const { dcaBase, multReserva, multN3p, multN3, multN2, multN01, multN1i, multN1r,
+    vixPanic, vixEuph, vstPanic, vstEuph, ddMod, ddSev, ddEuph, rationWarn, rationBrake } = cfg
+
+  const objReserva = dcaBase * multReserva
+  const reservaCompleta = hasReserva && reserva >= objReserva
+  const protocoloActivo = reservaCompleta
+
+  const cVixP  = vix > vixPanic
+  const cVstP  = hasVstoxx && vstoxx > vstPanic
+  const cDDm   = drawdown < ddMod
+  const cDDs   = drawdown < ddSev
+  const cBear  = urthPrice < sma200
+  const cEuph  = (vix < vixEuph || (hasVstoxx && vstoxx < vstEuph)) && drawdown >= ddEuph
+  const cResInc = hasReserva && reserva < objReserva
+
+  let n3p, n3, n2, nm1, n01
+  if (protocoloActivo) {
+    n3p = (cVixP || cVstP) && cDDm && cBear && cDDs
+    n3  = (cVixP || cVstP) && cDDm && cBear && !cDDs && drawdown >= ddSev
+    n2  = (cVixP || cVstP || cDDm) && cBear && !n3 && !n3p
+    nm1 = cEuph
+    n01 = !n3p && !n3 && !n2 && !nm1
+  } else {
+    n3p = false; n3 = false; n2 = false; nm1 = false; n01 = true
+  }
+
+  let level, mult
+  if (n3p)      { level = '3+';  mult = multN3p }
+  else if (n3)  { level = '3';   mult = multN3  }
+  else if (n2)  { level = '2';   mult = multN2  }
+  else if (nm1) { level = '-1';  mult = cResInc ? multN1i : multN01 }
+  else          { level = '0-1'; mult = multN01 }
+
+  const invCalc    = dcaBase * mult
+  const excesoBase = Math.max(0, invCalc - dcaBase)
+  const invRes     = (level === '-1' && cResInc) ? dcaBase * multN1r : 0
+
+  let invFinal = invCalc, rationTier = 0, rationAlert = false
+  if (hasReserva && protocoloActivo) {
+    const postOp = reserva - excesoBase
+    rationAlert = reserva < objReserva * (rationWarn / 100)
+    if (postOp <= 0)                                    { invFinal = dcaBase * 0.5; rationTier = 3 }
+    else if (postOp < objReserva * (rationBrake / 100)){ invFinal = invCalc / 2;   rationTier = 2 }
+  }
+
+  const excesoFinal    = Math.max(0, invFinal - dcaBase)
+  const reservaPostRaw = hasReserva ? reserva - excesoFinal : null
+  const reservaPost    = reservaPostRaw != null ? Math.max(0, reservaPostRaw) : null
+  const reservaAgotada = reservaPostRaw != null && reservaPostRaw < 0
+
+  const hasCartera  = navEur > 0
+  const isFirst     = hasCartera && capital === 0 && parts === 0
+  const newParts    = hasCartera ? invFinal / navEur : 0
+  const totalParts  = parts + newParts
+  const breakEven   = totalParts > 0 ? (capital + invFinal) / totalParts : 0
+  const pctRec      = (hasCartera && !isFirst && navEur < breakEven)
+    ? ((breakEven - navEur) / navEur) * 100 : null
+
+  const costeExtraN3 = dcaBase * (multN3 - multN01)
+  const coverMonths  = (reservaPost != null && costeExtraN3 > 0) ? reservaPost / costeExtraN3 : null
+
+  return {
+    level, mult, invFinal, invCalc, excesoFinal, invRes,
+    rationTier, rationAlert, reservaAgotada,
+    objReserva, cResInc, reservaCompleta, protocoloActivo,
+    conds: { cVixP, cVstP, cDDm, cDDs, cBear, cEuph, cResInc },
+    levels: { n3p, n3, n2, n01, nm1 },
+    hasCartera, isFirst, newParts, totalParts, breakEven, pctRec,
+    reservaPost, coverMonths,
+    dcaPure: dcaBase * multN01,
+  }
+}
+
+// ── PDF ───────────────────────────────────────────────────────────────────────
+function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
+  const { level, invFinal, excesoFinal, rationTier, reservaPost, objReserva,
+    hasCartera, breakEven, pctRec, totalParts, newParts, isFirst,
+    coverMonths, dcaPure, mult, protocoloActivo, conds, levels } = result
+  const { urthPrice, sma200, drawdown, vix, vstoxx, hasVstoxx } = mktRaw
+  const { reserva, hasReserva, navEur, capital, parts } = portRaw
+  const meta = LM[level] || LM['0-1']
+  const date = todayStr()
+  const activo = cfg.activo || 'Activo de referencia: URTH (MSCI World)'
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>DCA Radar — ${date}</title>
+<style>
+  @page { margin: 2cm 2.5cm; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1d1d1f; font-size: 11px; line-height: 1.5; background: white; }
+  
+  .header { border-bottom: 2px solid #1d1d1f; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-sub { font-size: 11px; color: #6e6e73; margin-top: 2px; }
+  .header-date { text-align: right; font-size: 11px; color: #6e6e73; }
+  
+  .verdict { background: ${meta.bg}; border: 1.5px solid ${meta.border}; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .verdict-level { font-size: 26px; font-weight: 700; color: ${meta.color}; letter-spacing: -0.5px; margin-bottom: 12px; }
+  .verdict-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .vblock-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #6e6e73; margin-bottom: 3px; }
+  .vblock-value { font-size: 18px; font-weight: 700; white-space: nowrap; }
+  
+  .alert { border-radius: 6px; padding: 8px 12px; font-size: 11px; margin-bottom: 10px; font-weight: 500; }
+  .alert-crit { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+  .alert-warn { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; }
+  .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+  .alert-ok   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+  
+  .section { margin-bottom: 18px; }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #6e6e73; border-bottom: 1px solid #e5e5ea; padding-bottom: 4px; margin-bottom: 8px; }
+  
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  
+  .kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f5f5f7; }
+  .kv-k { color: #6e6e73; }
+  .kv-v { font-weight: 600; white-space: nowrap; }
+  
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: 10px; font-weight: 600; margin-right: 4px; margin-bottom: 4px; }
+  .badge-ok   { background: #d1fae5; color: #065f46; }
+  .badge-warn { background: #fee2e2; color: #991b1b; }
+  .badge-neu  { background: #f3f4f6; color: #6b7280; }
+  
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th { text-align: left; padding: 5px 8px; background: #f5f5f7; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6e6e73; }
+  td { padding: 5px 8px; border-bottom: 1px solid #f5f5f7; }
+  tr.active td { background: ${meta.bg}; font-weight: 600; color: ${meta.color}; }
+  tr:nth-child(even):not(.active) td { background: #fafafa; }
+  
+  .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e5e5ea; font-size: 9px; color: #aeaeb2; line-height: 1.6; }
+  .footer strong { color: #6e6e73; }
+  
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">DCA Radar</div>
+    <div class="header-sub">Auditoría táctica mensual${activo ? ' · ' + activo : ''}</div>
+  </div>
+  <div class="header-date">
+    <div style="font-size:13px;font-weight:700">${date}</div>
+    ${fetchDate ? '<div>Datos de mercado: ' + fetchDate + '</div>' : ''}
+    <div style="margin-top:3px;display:inline-block;background:${meta.bg};border:1px solid ${meta.border};border-radius:4px;padding:2px 8px;font-weight:600;color:${meta.color}">${level} — ${meta.label}</div>
+  </div>
+</div>
+
+<div class="verdict">
+  <div class="verdict-level">${level} — ${meta.label}</div>
+  <div class="verdict-grid">
+    <div>
+      <div class="vblock-label">Invertir este mes</div>
+      <div class="vblock-value" style="color:#1d1d1f">${eur(invFinal)}</div>
+    </div>
+    <div>
+      <div class="vblock-label">De nómina / flujo</div>
+      <div class="vblock-value" style="color:#16a34a">${eur(cfg.dcaBase)}</div>
+    </div>
+    <div>
+      <div class="vblock-label">De reserva táctica</div>
+      <div class="vblock-value" style="color:${excesoFinal > 0 ? '#ea580c' : '#6e6e73'}">${eur(excesoFinal)}</div>
+    </div>
+    ${reservaPost != null ? `<div>
+      <div class="vblock-label">Reserva tras operación</div>
+      <div class="vblock-value" style="color:${reservaPost < objReserva * 0.25 ? '#dc2626' : reservaPost < objReserva * 0.5 ? '#ca8a04' : '#16a34a'}">${eur(reservaPost)}</div>
+    </div>` : ''}
+  </div>
+</div>
+
+${rationTier === 3 ? '<div class="alert alert-crit">🔴 Racionamiento crítico — la operación agotaría la reserva táctica. Inversión reducida al mínimo (DCA × 0.5).</div>' : ''}
+${rationTier === 2 ? '<div class="alert alert-warn">⚠ Racionamiento activo — la operación dejaría la reserva por debajo del ' + cfg.rationBrake + '% del objetivo. Inversión dividida entre 2.</div>' : ''}
+${result.rationAlert && rationTier === 0 ? '<div class="alert alert-info">Reserva por debajo del ' + cfg.rationWarn + '% del objetivo. Sin racionamiento aún — vigilar evolución.</div>' : ''}
+${!protocoloActivo ? '<div class="alert alert-info">Protocolo táctico inactivo — reserva ' + (hasReserva ? 'incompleta (' + eur(portRaw.reserva) + ' de ' + eur(objReserva) + ')' : 'no aportada') + '. Aplicando DCA base.</div>' : ''}
+${level === '-1' && !result.cResInc ? '<div class="alert alert-info">Mercado en euforia — inversión reducida. Momento de acumular reserva táctica.</div>' : ''}
+
+<div class="section">
+  <div class="section-title">Estado del mercado</div>
+  <div style="margin-bottom:6px">
+    ${[
+      { l: 'VIX ' + fN(vix), ok: !conds.cVixP },
+      { l: 'VSTOXX ' + (hasVstoxx ? fN(vstoxx) : 'n/a'), ok: !conds.cVstP, neu: !hasVstoxx },
+      { l: conds.cDDs ? 'DD Severo' : conds.cDDm ? 'DD Moderado' : 'DD Normal ' + pct(drawdown), ok: !conds.cDDm },
+      { l: conds.cBear ? 'Bajista' : 'Alcista', ok: !conds.cBear },
+      { l: 'Reserva ' + (hasReserva ? (result.reservaCompleta ? 'completa' : 'incompleta') : 'n/a'), ok: result.reservaCompleta, neu: !hasReserva },
+    ].map(({ l, ok, neu }) => `<span class="badge ${neu ? 'badge-neu' : ok ? 'badge-ok' : 'badge-warn'}">${neu ? '○' : ok ? '✓' : '✗'} ${l}</span>`).join('')}
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="section">
+    <div class="section-title">Datos de mercado</div>
+    ${[
+      ['URTH Precio', usd(urthPrice)],
+      ['SMA 200 (200 sesiones)', usd(sma200)],
+      ['Tendencia', urthPrice > sma200 ? 'Alcista ▲' : 'Bajista ▼'],
+      ['Drawdown vs máximo', pct(drawdown)],
+      ['VIX', fN(vix) + (vix > cfg.vixPanic ? ' — PÁNICO' : vix < cfg.vixEuph ? ' — euforia' : ' — normal')],
+      ['VSTOXX', hasVstoxx ? fN(vstoxx) + (vstoxx > cfg.vstPanic ? ' — PÁNICO' : vstoxx < cfg.vstEuph ? ' — euforia' : ' — normal') : 'No aportado'],
+    ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Operación del mes</div>
+    ${[
+      ['DCA base', eur(cfg.dcaBase)],
+      ['Multiplicador activo', '× ' + mult],
+      ['Inversión calculada', eur(result.invCalc)],
+      ['Racionamiento', rationTier > 0 ? 'Sí — nivel ' + rationTier : 'No aplica'],
+      ['Inversión final', eur(invFinal)],
+      ['De flujo de caja', eur(cfg.dcaBase)],
+      ['De reserva táctica', eur(excesoFinal)],
+      ...(coverMonths != null ? [['Cobertura reserva (Niv. 3)', fN(coverMonths, 1) + ' meses']] : []),
+    ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
+  </div>
+</div>
+
+${hasCartera ? `
+<div class="section">
+  <div class="section-title">Cartera tras la operación</div>
+  <div class="grid3">
+    <div>
+      ${[
+        ['NAV del fondo', eur(navEur)],
+        ['Capital previo', eur(capital)],
+        ['Participaciones previas', f4(parts)],
+      ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
+    </div>
+    <div>
+      ${[
+        ['Nuevas participaciones', f4(newParts)],
+        ['Total participaciones', f4(totalParts)],
+        ['Capital total', eur(capital + invFinal)],
+      ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
+    </div>
+    <div>
+      ${[
+        ['Break-Even', isFirst ? eur(breakEven) + ' (= NAV)' : eur(breakEven)],
+        ['NAV actual', eur(navEur)],
+        ['% Recuperación necesaria', pctRec != null ? pct(pctRec) : isFirst ? 'N/A — 1ª aportación' : '✓ NAV > Break-Even'],
+      ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
+    </div>
+  </div>
+</div>` : ''}
+
+<div class="section">
+  <div class="section-title">Matriz de niveles</div>
+  <table>
+    <thead>
+      <tr><th>Nivel</th><th>Condición de activación</th><th>Multiplicador</th><th>Inversión</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+      ${[
+        { lbl: '3+ Crash',   active: levels.n3p, lvl: '3+',  mult: cfg.multN3p, cond: 'Pánico VIX/VSTOXX + DD severo + Tendencia bajista' },
+        { lbl: '3 Pleno',    active: levels.n3,  lvl: '3',   mult: cfg.multN3,  cond: 'Pánico VIX/VSTOXX + DD moderado + Tendencia bajista' },
+        { lbl: '2 Refuerzo', active: levels.n2,  lvl: '2',   mult: cfg.multN2,  cond: 'Señal de pánico/DD + Tendencia bajista' },
+        { lbl: '0-1 Base',   active: levels.n01, lvl: '0-1', mult: cfg.multN01, cond: 'Sin señales de alerta — mercado normal' },
+        { lbl: '-1 Euforia', active: levels.nm1, lvl: '-1',  mult: cfg.multN1i, cond: 'VIX/VSTOXX en euforia + DD cerca de máximos' },
+      ].map(row => {
+        const rm = LM[row.lvl] || LM['0-1']
+        return `<tr class="${row.active ? 'active' : ''}">
+          <td style="font-weight:${row.active ? 700 : 400};color:${row.active ? rm.color : 'inherit'}">${row.active ? '▶ ' : ''}${row.lbl}</td>
+          <td style="color:#6e6e73">${row.cond}</td>
+          <td>× ${row.mult}</td>
+          <td>${eur(cfg.dcaBase * row.mult)}</td>
+          <td>${row.active ? '<strong style="color:' + rm.color + '">ACTIVO</strong>' : '—'}</td>
+        </tr>`
+      }).join('')}
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <strong>DCA Radar</strong>${activo ? ' · ' + activo : ''}<br>
+  Herramienta de cálculo personal. No constituye asesoramiento financiero ni recomendación de inversión.<br>
+  La inversión en fondos implica riesgo de pérdida de capital. Verifique siempre con su bróker antes de operar.
+</div>
+
+<script>window.onload = () => window.print()</script>
+</body>
+</html>`
+
+  const w = window.open('', '_blank')
+  if (!w) { alert('Permite ventanas emergentes para exportar el PDF.'); return }
+  w.document.write(html)
+  w.document.close()
+}
+
+// ── Copy to Sheets ────────────────────────────────────────────────────────────
+function copySheets(result, mktRaw, portRaw, cfg) {
+  const { level, invFinal, excesoFinal, reservaPost, hasCartera,
+    newParts, totalParts, breakEven, pctRec, dcaPure } = result
+  const { drawdown, vix, vstoxx, hasVstoxx } = mktRaw
+  const { navEur } = portRaw
+  const meta = LM[level] || LM['0-1']
+
+  const cols = [
+    todayStr(),
+    level + ' — ' + meta.label,
+    cfg.activo || 'URTH',
+    navEur > 0 ? fN(navEur) : '',
+    fN(invFinal),
+    fN(cfg.dcaBase),
+    fN(excesoFinal),
+    reservaPost != null ? fN(reservaPost) : '',
+    hasCartera ? f4(newParts) : '',
+    hasCartera ? f4(totalParts) : '',
+    hasCartera ? fN(breakEven) : '',
+    pct(drawdown),
+    fN(vix),
+    hasVstoxx ? fN(vstoxx) : '',
+    hasCartera && pctRec != null ? pct(pctRec) : '',
+  ]
+
+  const header = 'Fecha\tNivel\tActivo\tNAV\tInversión\tNómina\tReserva usada\tReserva post\tPart.nuevas\tPart.total\tBreak-Even\tDrawdown\tVIX\tVSTOXX\t%Recuperación'
+
+  navigator.clipboard.writeText(cols.join('\t'))
+    .then(() => alert('✓ Fila copiada al portapapeles.\n\nPégala en Google Sheets con Ctrl+V.\n\nCabeceras para la primera fila:\n' + header))
+    .catch(() => alert('No se pudo copiar. Comprueba los permisos del navegador.'))
+}
+
+// ── NumInput ──────────────────────────────────────────────────────────────────
+function NumInput({ label, value, onChange, unit, step, hint, optional, accent, dark }) {
+  const cur = pf(value)
+  const dec = step < 1 ? (String(step).split('.')[1]?.length || 1) : 0
+  const adj = (dir) => {
+    const next = Math.round((cur + dir * step) * 1e8) / 1e8
+    onChange(dec > 0 ? next.toFixed(dec) : String(next))
+  }
+  const c = dark ? { bg: '#3a3a3c', border: '#48484a', text: '#f5f5f7', sub: '#8e8e93', btn: '#48484a' }
+                 : { bg: 'white',   border: '#e5e5ea', text: '#1d1d1f', sub: '#aeaeb2', btn: '#f5f5f7' }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: accent || (dark ? '#8e8e93' : '#6e6e73'), textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</label>
+        {optional && <span style={{ fontSize: 10, color: c.sub }}>opcional</span>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: c.bg, border: '1px solid ' + c.border, borderRadius: 10, padding: '8px 10px' }}>
+        <button onClick={() => adj(-1)} style={{ minWidth: 32, minHeight: 32, borderRadius: 7, border: '1px solid ' + c.border, background: c.btn, color: c.text, cursor: 'pointer', fontFamily: 'inherit', fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>&minus;</button>
+        <input type="number" step={step} value={value} placeholder="—"
+          onChange={e => onChange(e.target.value)}
+          style={{ flex: 1, background: 'transparent', border: 'none', color: c.text, fontSize: 17, fontWeight: 600, fontFamily: 'inherit', outline: 'none', minWidth: 0, textAlign: 'center' }} />
+        <button onClick={() => adj(1)} style={{ minWidth: 32, minHeight: 32, borderRadius: 7, border: '1px solid ' + c.border, background: c.btn, color: c.text, cursor: 'pointer', fontFamily: 'inherit', fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>+</button>
+        {unit && <span style={{ fontSize: 12, color: c.sub, flexShrink: 0 }}>{unit}</span>}
+      </div>
+      {hint && <div style={{ fontSize: 11, color: c.sub }}>{hint}</div>}
+    </div>
+  )
+}
+
+// ── Verdict panel ─────────────────────────────────────────────────────────────
+function VerdictPanel({ result, cfg, mktRaw, dark }) {
+  if (!result) {
+    const c = dark ? '#8e8e93' : '#aeaeb2'
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, gap: 12, color: c }}>
+        <div style={{ fontSize: 44 }}>📡</div>
+        <div style={{ fontSize: 16, fontWeight: 600 }}>Esperando datos de mercado</div>
+        <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>Introduce los 4 datos de mercado y el veredicto aparecerá aquí automáticamente.</div>
+      </div>
+    )
+  }
+
+  const { level, invFinal, excesoFinal, rationTier, rationAlert, reservaPost,
+    objReserva, protocoloActivo, cResInc, hasCartera, breakEven, pctRec,
+    totalParts, newParts, isFirst, coverMonths, conds, levels, invRes } = result
+  const meta = LM[level] || LM['0-1']
+  const { hasVstoxx } = mktRaw
+
+  const bg    = dark ? meta.bgD    : meta.bg
+  const bord  = dark ? meta.borderD: meta.border
+  const cardBg = dark ? '#2c2c2e' : 'white'
+  const cardBorder = dark ? '#3a3a3c' : '#e5e5ea'
+  const textSub = dark ? '#8e8e93' : '#6e6e73'
+  const textMain = dark ? '#f5f5f7' : '#1d1d1f'
+
+  const condItems = [
+    { l: 'VIX',       ok: !conds.cVixP,  detail: conds.cVixP ? 'Pánico' : 'Normal',   neu: false },
+    { l: 'VSTOXX',    ok: !conds.cVstP,  detail: conds.cVstP ? 'Pánico' : hasVstoxx ? 'Normal' : 'N/A', neu: !hasVstoxx },
+    { l: 'Drawdown',  ok: !conds.cDDm,   detail: conds.cDDs ? 'Severo' : conds.cDDm ? 'Moderado' : 'Normal', neu: false },
+    { l: 'Tendencia', ok: !conds.cBear,  detail: conds.cBear ? 'Bajista' : 'Alcista',  neu: false },
+    { l: 'Reserva',   ok: result.reservaCompleta, detail: result.reservaCompleta ? 'Completa' : cResInc ? 'Incompleta' : 'Sin datos', neu: !result.reservaPost },
+  ]
+
+  const alertStyle = (type) => ({
+    background: type === 'crit' ? (dark ? '#2d1515' : '#fef2f2') : type === 'warn' ? (dark ? '#2d1a0a' : '#fff7ed') : (dark ? '#0f172a' : '#eff6ff'),
+    border: '1px solid ' + (type === 'crit' ? (dark ? '#7f1d1d' : '#fecaca') : type === 'warn' ? (dark ? '#7c2d12' : '#fed7aa') : (dark ? '#1e3a5f' : '#bfdbfe')),
+    color: type === 'crit' ? '#ef4444' : type === 'warn' ? '#f97316' : (dark ? '#60a5fa' : '#1d4ed8'),
+    borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 500, marginTop: 8,
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Main card */}
+      <div style={{ background: bg, border: '1.5px solid ' + bord, borderRadius: 14, padding: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
+          <div style={{ fontSize: 11, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.7px' }}>Nivel activo</div>
+          {!protocoloActivo && <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 600, background: dark ? '#292100' : '#fef9c3', border: '1px solid ' + (dark ? '#713f12' : '#fde68a'), color: '#ca8a04', borderRadius: 6, padding: '2px 8px' }}>Protocolo inactivo</span>}
+        </div>
+
+        <div style={{ fontSize: 30, fontWeight: 700, color: meta.color, letterSpacing: '-0.5px', marginBottom: 16 }}>
+          {level} — {meta.label}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {[
+            { l: 'Invertir este mes', v: eur(invFinal), c: textMain, big: true },
+            { l: 'De flujo de caja',  v: eur(cfg.dcaBase), c: '#22c55e' },
+            { l: 'De reserva',        v: eur(excesoFinal), c: excesoFinal > 0 ? '#f97316' : textSub },
+          ].map(({ l, v, c, big }) => (
+            <div key={l}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 3 }}>{l}</div>
+              <div style={{ fontSize: big ? 20 : 16, fontWeight: 700, color: c }}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {reservaPost != null && (
+          <div style={{ marginTop: 12, background: dark ? 'rgba(0,0,0,0.3)' : 'white', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: textSub }}>Reserva tras la operación</span>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: reservaPost < objReserva * 0.25 ? '#ef4444' : reservaPost < objReserva * 0.5 ? '#eab308' : '#22c55e' }}>
+                {eur(reservaPost)}
+              </span>
+              {coverMonths != null && <span style={{ fontSize: 11, color: textSub, marginLeft: 8 }}>· {fN(coverMonths, 1)} meses cobertura Niv.3</span>}
+            </div>
+          </div>
+        )}
+
+        {rationTier === 3 && <div style={alertStyle('crit')}>🔴 Racionamiento crítico — la operación agotaría la reserva. Inversión reducida al mínimo.</div>}
+        {rationTier === 2 && <div style={alertStyle('warn')}>⚠ Racionamiento activo — inversión ÷2 para proteger la reserva táctica.</div>}
+        {rationAlert && rationTier === 0 && <div style={alertStyle('info')}>Reserva por debajo del {cfg.rationWarn}% del objetivo. Sin racionamiento aún.</div>}
+        {level === '-1' && !cResInc && <div style={alertStyle('info')}>Mercado en euforia — inversión reducida. Momento de acumular reserva.</div>}
+        {level === '-1' && cResInc && <div style={alertStyle('info')}>Nivel -1 + Reserva incompleta: {eur(invFinal)} a inversión + {eur(invRes)} a reserva.</div>}
+        {!protocoloActivo && <div style={alertStyle('info')}>{cResInc ? 'Reserva incompleta — protocolo inactivo. Aplicando DCA base.' : 'Reserva no aportada — introduce el saldo de tu reserva táctica.'}</div>}
+      </div>
+
+      {/* Market conditions */}
+      <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 12, padding: '12px 14px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10 }}>Señales de mercado</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {condItems.map(({ l, ok, detail, neu }) => {
+            const bg2 = neu ? (dark ? '#3a3a3c' : '#f3f4f6') : ok ? (dark ? '#0f1f13' : '#d1fae5') : (dark ? '#2d1515' : '#fee2e2')
+            const col = neu ? textSub : ok ? '#22c55e' : '#ef4444'
+            return (
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, background: bg2, borderRadius: 8, padding: '5px 10px' }}>
+                <span style={{ fontSize: 12, color: col }}>{neu ? '○' : ok ? '✓' : '✗'}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: col }}>{l}</span>
+                <span style={{ fontSize: 11, color: textSub }}>{detail}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Portfolio */}
+      {hasCartera && (
+        <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 12, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10 }}>Tu cartera</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {[
+              { l: 'Nuevas participaciones', v: f4(newParts) },
+              { l: 'Total participaciones',  v: f4(totalParts) },
+              { l: 'Break-Even',             v: isFirst ? eur(breakEven) + ' (= NAV)' : eur(breakEven) },
+              { l: '% Recuperación',         v: pctRec != null ? pct(pctRec) : isFirst ? 'N/A — 1ª aportación' : '✓ NAV > Break-Even', vc: pctRec != null ? '#eab308' : '#22c55e' },
+            ].map(({ l, v, vc }) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid ' + cardBorder }}>
+                <span style={{ fontSize: 12, color: textSub }}>{l}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: vc || textMain }}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Matrix — collapsed */}
+      <details>
+        <summary style={{ fontSize: 12, color: textSub, cursor: 'pointer', padding: '4px 0', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+          ▸ Matriz completa de niveles
+        </summary>
+        <div style={{ marginTop: 8, background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 12, padding: '12px 14px', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 380 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid ' + cardBorder }}>
+                {['Nivel', 'Estado', '×', 'Inversión'].map(h => (
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { lbl: '3+ Crash',   active: levels.n3p, lvl: '3+',  mult: cfg.multN3p },
+                { lbl: '3 Pleno',    active: levels.n3,  lvl: '3',   mult: cfg.multN3  },
+                { lbl: '2 Refuerzo', active: levels.n2,  lvl: '2',   mult: cfg.multN2  },
+                { lbl: '0-1 Base',   active: levels.n01, lvl: '0-1', mult: cfg.multN01 },
+                { lbl: '-1 Euforia', active: levels.nm1, lvl: '-1',  mult: cfg.multN1i },
+              ].map((row, i) => {
+                const rm = LM[row.lvl] || LM['0-1']
+                const rowBg = row.active ? (dark ? rm.bgD : rm.bg) : i % 2 === 0 ? cardBg : (dark ? '#3a3a3c' : '#fafafa')
+                return (
+                  <tr key={row.lbl} style={{ background: rowBg, borderBottom: '1px solid ' + cardBorder }}>
+                    <td style={{ padding: '8px', fontWeight: row.active ? 700 : 400, color: row.active ? rm.color : textMain }}>
+                      {row.active && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: rm.color, marginRight: 6 }} />}
+                      {row.lbl}
+                    </td>
+                    <td style={{ padding: '8px' }}>
+                      {row.active
+                        ? <span style={{ background: dark ? rm.bgD : rm.bg, color: rm.color, border: '1px solid ' + (dark ? rm.borderD : rm.border), borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>Activo</span>
+                        : <span style={{ color: textSub }}>—</span>}
+                    </td>
+                    <td style={{ padding: '8px', color: textSub }}>×{row.mult}</td>
+                    <td style={{ padding: '8px', fontWeight: row.active ? 700 : 400, color: row.active ? textMain : textSub }}>{eur(cfg.dcaBase * row.mult)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  )
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [dark, setDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches || false)
+  const [tab, setTab]   = useState('auditoria')
+  const [cfg, setCfg]   = useState(DEF_CFG)
+
+  // Market
+  const [mkt, setMkt]   = useState({ urthPrice: '', sma200: '', drawdown: '', vix: '', vstoxx: '' })
+  const [fs, setFs]     = useState('idle')
+  const [ferr, setFerr] = useState('')
+  const [fetchDate, setFetchDate] = useState('')
+
+  // Portfolio
+  const [navEur,  setNavEur]  = useState('')
+  const [reserva, setReserva] = useState('')
+  const [capital, setCapital] = useState('')
+  const [parts,   setParts_]  = useState('')
+
+  const [copied, setCopied] = useState(false)
+
+  const updCfg = (k, v) => setCfg(c => {
+    const next = { ...c, [k]: typeof v === 'string' ? v : pf(v) }
+    // If multiplier changed, switch to custom profile
+    if (['multN3p','multN3','multN2','multN01','multN1i','multN1r'].includes(k)) {
+      next.profile = 'personalizado'
+    }
+    return next
+  })
+
+  const applyProfile = (id) => {
+    const p = PROFILES[id]
+    if (!p) return
+    setCfg(c => ({ ...c, profile: id, ...p }))
+  }
+
+  // Auto-fetch
+  const doFetch = useCallback(async () => {
+    setFs('loading'); setFerr('')
+    try {
+      const r = await fetch('/api/market')
+      if (!r.ok) throw new Error('HTTP ' + r.status)
+      const d = await r.json()
+      if (d.error) throw new Error(d.error)
+      setMkt(m => ({
+        urthPrice: String(Math.round(d.urthPrice * 100) / 100),
+        sma200:    String(Math.round(d.sma200    * 100) / 100),
+        drawdown:  String(Math.round(d.drawdown  * 100) / 100),
+        vix:       String(Math.round(d.vix       * 100) / 100),
+        vstoxx:    m.vstoxx,
+      }))
+      setFetchDate(d.lastDate || todayStr())
+      setFs('ok')
+    } catch (e) { setFs('error'); setFerr(e.message) }
+  }, [])
+
+  // Derived
+  const hasVstoxx   = mkt.vstoxx !== '' && pf(mkt.vstoxx) > 0
+  const mktComplete = ['urthPrice','sma200','drawdown','vix'].every(k => mkt[k] !== '' && !isNaN(pf(mkt[k])))
+  const hasReserva  = reserva !== '' && !isNaN(pf(reserva))
+
+  const mktRaw = {
+    urthPrice: pf(mkt.urthPrice), sma200: pf(mkt.sma200),
+    drawdown:  pf(mkt.drawdown),  vix:    pf(mkt.vix),
+    vstoxx:    pf(mkt.vstoxx),    hasVstoxx,
+  }
+  const portRaw = {
+    reserva: pf(reserva), hasReserva,
+    navEur:  pf(navEur),
+    capital: capital !== '' ? pf(capital) : 0,
+    parts:   parts   !== '' ? pf(parts)   : 0,
+  }
+
+  const result = mktComplete ? calc(mktRaw, portRaw, cfg) : null
+
+  // Theme colors
+  const T = {
+    pageBg:   dark ? '#1c1c1e' : '#f2f2f7',
+    hdrBg:    dark ? 'rgba(28,28,30,0.92)' : 'rgba(255,255,255,0.92)',
+    hdrBorder:dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+    cardBg:   dark ? '#2c2c2e' : 'white',
+    cardBorder:dark ? '#3a3a3c' : '#e5e5ea',
+    text:     dark ? '#f5f5f7' : '#1d1d1f',
+    textSub:  dark ? '#8e8e93' : '#6e6e73',
+    tabBg:    dark ? '#3a3a3c' : '#f2f2f7',
+    tabActive: dark ? '#48484a' : 'white',
+  }
+
+  const tabBtn = (id, label) => (
+    <button key={id} onClick={() => setTab(id)} style={{
+      padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+      fontFamily: 'inherit', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+      background: tab === id ? T.tabActive : 'transparent',
+      color: tab === id ? T.text : T.textSub,
+      boxShadow: tab === id ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+      transition: 'all 0.15s',
+    }}>{label}</button>
+  )
+
+  const sectionTitle = (t) => (
+    <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>{t}</div>
+  )
+
+  const Card = ({ children, style: sx = {} }) => (
+    <div style={{ background: T.cardBg, border: '1px solid ' + T.cardBorder, borderRadius: 14, padding: 18, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', ...sx }}>
+      {children}
+    </div>
+  )
+
+  return (
+    <div style={{ minHeight: '100vh', background: T.pageBg, color: T.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif", fontSize: 14 }}>
+      <style>{`
+        *{box-sizing:border-box}
+        input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+        input[type=number]{-moz-appearance:textfield}
+        details summary{list-style:none;cursor:pointer}
+        details summary::-webkit-details-marker{display:none}
+        @media(max-width:680px){
+          .two-col{grid-template-columns:1fr!important}
+          .mobile-dock{display:flex!important}
+        }
+        @media(min-width:681px){
+          .mobile-dock{display:none!important}
+        }
+      `}</style>
+
+      {/* HEADER */}
+      <div style={{ background: T.hdrBg, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid ' + T.hdrBorder, padding: '12px 20px', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.3px' }}>DCA Radar</div>
+            <div style={{ fontSize: 11, color: T.textSub }}>Auditoría táctica mensual</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Level badge */}
+            {result && (() => {
+              const meta = LM[result.level] || LM['0-1']
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: dark ? meta.bgD : meta.bg, border: '1px solid ' + (dark ? meta.borderD : meta.border), borderRadius: 10, padding: '5px 12px' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: meta.color }}>{result.level}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{eur(result.invFinal)}</span>
+                </div>
+              )
+            })()}
+            {/* Actions */}
+            {result && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                  style={{ background: copied ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (copied ? '#16a34a' : T.cardBorder), color: copied ? '#22c55e' : T.text, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  {copied ? '✓' : '⊞'} Sheets
+                </button>
+                <button onClick={() => generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark)}
+                  style={{ background: T.text, color: T.pageBg, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ↓ PDF
+                </button>
+              </div>
+            )}
+            {/* Dark toggle */}
+            <button onClick={() => setDark(d => !d)} style={{ background: T.cardBg, border: '1px solid ' + T.cardBorder, borderRadius: 8, padding: '6px 10px', fontSize: 14, cursor: 'pointer', color: T.text }}>
+              {dark ? '☀️' : '🌙'}
+            </button>
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 3, background: T.tabBg, borderRadius: 10, padding: 3 }}>
+              {tabBtn('auditoria', 'Auditoría')}
+              {tabBtn('config', '⚙ Config')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1060, margin: '0 auto', padding: '20px 16px' }}>
+
+        {/* ── AUDITORÍA ── */}
+        {tab === 'auditoria' && (
+          <div className="two-col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,420px) minmax(0,1fr)', gap: 20, alignItems: 'start' }}>
+
+            {/* LEFT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              {/* Market card */}
+              <Card>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  {sectionTitle('Mercado')}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                    {fs === 'ok' && fetchDate && <span style={{ fontSize: 10, color: T.textSub }}>a {fetchDate}</span>}
+                    <button onClick={doFetch} disabled={fs === 'loading'} style={{
+                      background: fs === 'ok' ? (dark ? '#0f1f13' : '#f0fdf4') : T.text,
+                      border: '1px solid ' + (fs === 'ok' ? '#16a34a' : 'transparent'),
+                      color: fs === 'ok' ? '#22c55e' : T.pageBg,
+                      borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                      cursor: fs === 'loading' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                    }}>
+                      {fs === 'loading' ? '⟳' : fs === 'ok' ? '✓ Refrescar' : '⟳ Auto-fetch'}
+                    </button>
+                  </div>
+                </div>
+                {fs === 'error' && <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 10 }}>Error: {ferr} — Introduce manualmente.</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <NumInput dark={dark} label="URTH Precio" value={mkt.urthPrice} onChange={v => setMkt(m => ({ ...m, urthPrice: v }))} unit="$" step={0.5} />
+                    <NumInput dark={dark} label="SMA 200" value={mkt.sma200} onChange={v => setMkt(m => ({ ...m, sma200: v }))} unit="$" step={0.5} />
+                  </div>
+                  <NumInput dark={dark} label="Drawdown vs máximo histórico" value={mkt.drawdown} onChange={v => setMkt(m => ({ ...m, drawdown: v }))} unit="%" step={0.1} hint="Negativo, ej: −1.3" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <NumInput dark={dark} label="VIX" value={mkt.vix} onChange={v => setMkt(m => ({ ...m, vix: v }))} step={0.1} hint="cboe.com" />
+                    <NumInput dark={dark} label="VSTOXX" value={mkt.vstoxx} onChange={v => setMkt(m => ({ ...m, vstoxx: v }))} step={0.1} hint="deutsche-boerse.com" optional />
+                  </div>
+                </div>
+                {mkt.urthPrice && mkt.sma200 && (
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444' }} />
+                    <span style={{ fontSize: 12, color: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444', fontWeight: 500 }}>
+                      {pf(mkt.urthPrice) > pf(mkt.sma200) ? 'Tendencia alcista' : 'Tendencia bajista'}
+                    </span>
+                  </div>
+                )}
+              </Card>
+
+              {/* Portfolio card */}
+              <Card>
+                {sectionTitle('Cartera')}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <NumInput dark={dark} label="Reserva táctica" value={reserva} onChange={setReserva} unit="€" step={100} hint={'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva)} />
+                  <NumInput dark={dark} label="NAV del fondo" value={navEur} onChange={setNavEur} unit="€" step={0.1} hint="Precio de una participación hoy" optional />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <NumInput dark={dark} label="Capital invertido" value={capital} onChange={setCapital} unit="€" step={100} optional />
+                    <NumInput dark={dark} label="Participaciones" value={parts} onChange={setParts_} step={0.1} optional />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Sources */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  { l: 'URTH + VIX — Auto', url: 'https://finance.yahoo.com/quote/URTH/', auto: true },
+                  { l: 'VSTOXX', url: 'https://live.deutsche-boerse.com/indices/euro-stoxx-50-volatility-vstoxx', auto: false },
+                  { l: 'NAV', url: '', auto: false },
+                ].map(s => s.url ? (
+                  <a key={s.l} href={s.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: s.auto ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (s.auto ? '#16a34a' : T.cardBorder), borderRadius: 7, padding: '4px 10px', fontSize: 11, fontWeight: 500, color: s.auto ? '#22c55e' : T.textSub }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.auto ? '#22c55e' : T.textSub }} />{s.l} ↗
+                  </a>
+                ) : null)}
+                <span style={{ fontSize: 11, color: T.textSub, alignSelf: 'center' }}>NAV: consulta tu proveedor de fondo</span>
+              </div>
+            </div>
+
+            {/* RIGHT — Verdict */}
+            <VerdictPanel result={result} cfg={cfg} mktRaw={mktRaw} dark={dark} />
+          </div>
+        )}
+
+        {/* ── CONFIG ── */}
+        {tab === 'config' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800 }}>
+
+            {/* Activo + DCA */}
+            <Card>
+              {sectionTitle('General')}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>Nombre del activo (para PDF)</label>
+                  <input value={cfg.activo} onChange={e => updCfg('activo', e.target.value)} placeholder="Ej: Vanguard Global Stock EUR Acc / IWDA / VWCE"
+                    style={{ width: '100%', background: dark ? '#3a3a3c' : 'white', border: '1px solid ' + T.cardBorder, borderRadius: 10, padding: '10px 14px', fontSize: 14, color: T.text, fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                  <NumInput dark={dark} label="DCA Base mensual" value={cfg.dcaBase} onChange={v => updCfg('dcaBase', v)} unit="€" step={50} hint="Actualizar cada enero por IPC" />
+                  <NumInput dark={dark} label="Multiplicador reserva" value={cfg.multReserva} onChange={v => updCfg('multReserva', v)} step={1} hint={'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva)} />
+                  <NumInput dark={dark} label="Alerta reserva %" value={cfg.rationWarn} onChange={v => updCfg('rationWarn', v)} step={5} hint="Aviso temprano" />
+                  <NumInput dark={dark} label="Freno reserva %" value={cfg.rationBrake} onChange={v => updCfg('rationBrake', v)} step={5} hint="Activa racionamiento ÷2" />
+                </div>
+              </div>
+            </Card>
+
+            {/* Profiles */}
+            <Card>
+              {sectionTitle('Perfil de multiplicadores')}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
+                {Object.entries(PROFILES).map(([id, p]) => (
+                  <button key={id} onClick={() => applyProfile(id)} style={{
+                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                    border: '2px solid ' + (cfg.profile === id ? (id === 'conservador' ? '#22c55e' : id === 'moderado' ? '#3b82f6' : id === 'agresivo' ? '#ef4444' : T.cardBorder) : T.cardBorder),
+                    background: cfg.profile === id ? (dark ? '#1c2a3a' : '#f0f6ff') : T.cardBg,
+                    transition: 'all 0.15s',
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>{p.label}</div>
+                    <div style={{ fontSize: 11, color: T.textSub, lineHeight: 1.4 }}>{p.desc}</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: T.textSub }}>
+                      3+: ×{p.multN3p} · 3: ×{p.multN3} · 2: ×{p.multN2}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                {[
+                  { l: 'Nivel 3+ Crash ×',  k: 'multN3p', c: '#ef4444' },
+                  { l: 'Nivel 3 Pleno ×',   k: 'multN3',  c: '#f97316' },
+                  { l: 'Nivel 2 Refuerzo ×',k: 'multN2',  c: '#eab308' },
+                  { l: 'Nivel 0-1 Base ×',  k: 'multN01', c: '#22c55e' },
+                  { l: 'Nivel -1 Inv. ×',   k: 'multN1i', c: '#3b82f6' },
+                  { l: 'Nivel -1 Res. ×',   k: 'multN1r', c: '#8b5cf6' },
+                ].map(({ l, k, c }) => (
+                  <NumInput key={k} dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={0.5} hint={'= ' + eur(cfg.dcaBase * cfg[k])} accent={c} />
+                ))}
+              </div>
+            </Card>
+
+            {/* Thresholds */}
+            <Card>
+              {sectionTitle('Umbrales de señal')}
+              <div style={{ fontSize: 12, color: T.textSub, marginBottom: 12, lineHeight: 1.5 }}>
+                Valores validados históricamente. Modifica solo si tienes una razón clara.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                {[
+                  { l: 'Pánico VIX >',     k: 'vixPanic', s: 1 },
+                  { l: 'Euforia VIX <',    k: 'vixEuph',  s: 1 },
+                  { l: 'Pánico VSTOXX >',  k: 'vstPanic', s: 1 },
+                  { l: 'Euforia VSTOXX <', k: 'vstEuph',  s: 1 },
+                  { l: 'DD Moderado < %',  k: 'ddMod',    s: 1, hint: 'ej: −10' },
+                  { l: 'DD Severo < %',    k: 'ddSev',    s: 1, hint: 'ej: −20' },
+                  { l: 'Euforia DD >= %',  k: 'ddEuph',   s: 0.1, hint: 'ej: −0.5' },
+                ].map(({ l, k, s, hint: h }) => (
+                  <NumInput key={k} dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={s} hint={h} />
+                ))}
+              </div>
+            </Card>
+
+            <button onClick={() => setCfg(DEF_CFG)} style={{ background: 'transparent', border: '1px solid ' + T.cardBorder, color: T.textSub, padding: '8px 18px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, alignSelf: 'flex-start' }}>
+              Restaurar valores por defecto
+            </button>
+          </div>
+        )}
+
+        {/* FOOTER */}
+        <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid ' + T.cardBorder, fontSize: 11, color: T.textSub, lineHeight: 1.7 }}>
+          <div>DCA Radar — Herramienta de cálculo personal. No constituye asesoramiento financiero ni recomendación de inversión.</div>
+          <div>La inversión en fondos implica riesgo de pérdida de capital. Verifique siempre con su bróker antes de operar.</div>
+        </div>
+      </div>
+
+      {/* MOBILE DOCK */}
+      {result && (() => {
+        const meta = LM[result.level] || LM['0-1']
+        return (
+          <div className="mobile-dock" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: dark ? meta.bgD : meta.bg, borderTop: '2px solid ' + (dark ? meta.borderD : meta.border), padding: '12px 16px', alignItems: 'center', justifyContent: 'space-between', gap: 12, zIndex: 200 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Nivel activo</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: meta.color }}>{result.level} — {meta.label}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Invertir</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: T.text }}>{eur(result.invFinal)}</div>
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
