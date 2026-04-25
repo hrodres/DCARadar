@@ -156,49 +156,6 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
         </div>
       )}
 
-      <details>
-        <summary style={{ fontSize: 12, color: textSub, cursor: 'pointer', padding: '4px 0', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-          ▸ Matriz completa de niveles
-        </summary>
-        <div style={{ marginTop: 8, background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 12, padding: '12px 14px', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 380 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid ' + cardBorder }}>
-                {['Nivel', 'Estado', '×', 'Inversión'].map(h => (
-                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { lbl: '3+ Crash',   active: levels.n3p, lvl: '3+',  mult: cfg.multN3p },
-                { lbl: '3 Pleno',    active: levels.n3,  lvl: '3',   mult: cfg.multN3  },
-                { lbl: '2 Refuerzo', active: levels.n2,  lvl: '2',   mult: cfg.multN2  },
-                { lbl: '0-1 Base',   active: levels.n01, lvl: '0-1', mult: cfg.multN01 },
-                { lbl: '-1 Euforia', active: levels.nm1, lvl: '-1',  mult: cfg.multN1i },
-              ].map((row, i) => {
-                const rm = LM[row.lvl] || LM['0-1']
-                const rowBg = row.active ? (dark ? rm.bgD : rm.bg) : i % 2 === 0 ? cardBg : (dark ? '#3a3a3c' : '#fafafa')
-                return (
-                  <tr key={row.lbl} style={{ background: rowBg, borderBottom: '1px solid ' + cardBorder }}>
-                    <td style={{ padding: '8px', fontWeight: row.active ? 700 : 400, color: row.active ? rm.color : textMain }}>
-                      {row.active && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: rm.color, marginRight: 6 }} />}
-                      {row.lbl}
-                    </td>
-                    <td style={{ padding: '8px' }}>
-                      {row.active
-                        ? <span style={{ background: dark ? rm.bgD : rm.bg, color: rm.color, border: '1px solid ' + (dark ? rm.borderD : rm.border), borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>Activo</span>
-                        : <span style={{ color: textSub }}>—</span>}
-                    </td>
-                    <td style={{ padding: '8px', color: textSub }}>×{row.mult}</td>
-                    <td style={{ padding: '8px', fontWeight: row.active ? 700 : 400, color: row.active ? textMain : textSub }}>{eur(cfg.dcaBase * row.mult)}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </details>
     </div>
   )
 }
