@@ -601,11 +601,9 @@ export default function App() {
         )}
 
         {/* FOOTER */}
-        <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid ' + T.cardBorder, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: T.textSub }}>⚠ Solo para uso personal</div>
-          <div style={{ fontSize: 11, color: T.textSub, lineHeight: 1.6 }}>
-            DCA Radar es una herramienta de cálculo personal y no constituye asesoramiento financiero, recomendación de inversión ni gestión de patrimonio.
-            La inversión en fondos conlleva riesgo de pérdida parcial o total del capital. Consulta siempre con un profesional regulado antes de operar.
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 10, color: dark ? '#48484a' : '#aeaeb2', lineHeight: 1.5 }}>
+            Uso personal · No asesoramiento financiero · La inversión conlleva riesgo de pérdida de capital
           </div>
         </div>
       </div>
