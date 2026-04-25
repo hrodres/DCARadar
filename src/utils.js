@@ -71,11 +71,13 @@ export function calc(mktRaw, portRaw, cfg) {
   const invRes     = (level === '-1' && cResInc) ? dcaBase * multN1r : 0
 
   let invFinal = invCalc, rationTier = 0, rationAlert = false
-  if (hasReserva && protocoloActivo) {
-    const postOp = reserva - excesoBase
+  if (hasReserva) {
     rationAlert = reserva < objReserva * (rationWarn / 100)
-    if (postOp <= 0)                                     { invFinal = dcaBase;                    rationTier = 3 }
-    else if (postOp < objReserva * (rationBrake / 100)) { invFinal = dcaBase + excesoBase / 2;   rationTier = 2 }
+    if (excesoBase > 0) {
+      const postOp = reserva - excesoBase
+      if (postOp <= 0)                                     { invFinal = dcaBase;                    rationTier = 3 }
+      else if (postOp < objReserva * (rationBrake / 100)) { invFinal = dcaBase + excesoBase / 2;   rationTier = 2 }
+    }
   }
 
   const excesoFinal    = Math.max(0, invFinal - dcaBase)

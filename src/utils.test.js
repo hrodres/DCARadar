@@ -64,6 +64,17 @@ describe('calc — reserva incompleta (protocolo activo con racionamiento)', () 
     expect(r.rationTier).toBe(2)
     expect(r.invFinal).toBe(1250)
   })
+
+  it('euforia + reserva incompleta → invFinal reducido, sin racionamiento (excesoBase=0)', () => {
+    // nivel -1: invCalc = dcaBase * multN1i = 500*0.5 = 250 < dcaBase → excesoBase=0
+    // el racionamiento no debe disparar aunque la reserva sea baja
+    // invFinal = 250, invRes = 250 (sugerido a reserva), rationTier = 0
+    const r = calc(mkt(100, 80, -0.3, 12), INC_RESERVE, CFG)
+    expect(r.level).toBe('-1')
+    expect(r.invFinal).toBe(250)
+    expect(r.invRes).toBe(250)
+    expect(r.rationTier).toBe(0)
+  })
 })
 
 describe('calc — nivel 3+ CRASH', () => {
