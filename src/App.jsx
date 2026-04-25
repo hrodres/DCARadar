@@ -257,6 +257,17 @@ function copySheets(result, mktRaw, portRaw, cfg) {
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
+function Card({ children, cardBg, cardBorder, style: sx = {} }) {
+  return (
+    <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 14, padding: 18, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', ...sx }}>
+      {children}
+    </div>
+  )
+}
+
+function SectionTitle({ text, color }) {
+  return <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>{text}</div>
+}
 export default function App() {
   const [dark, setDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches || false)
   const [tab, setTab]   = useState('auditoria')
@@ -354,15 +365,8 @@ export default function App() {
     }}>{label}</button>
   )
 
-  const sectionTitle = (t) => (
-    <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>{t}</div>
-  )
-
-  const Card = ({ children, style: sx = {} }) => (
-    <div style={{ background: T.cardBg, border: '1px solid ' + T.cardBorder, borderRadius: 14, padding: 18, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', ...sx }}>
-      {children}
-    </div>
-  )
+  const sectionTitle = (t) => <SectionTitle text={t} color={T.textSub} />
+  const cardProps = { cardBg: T.cardBg, cardBorder: T.cardBorder }
 
   return (
     <div style={{ minHeight: '100vh', background: T.pageBg, color: T.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif", fontSize: 14 }}>
@@ -377,6 +381,7 @@ export default function App() {
           .mobile-dock{display:flex!important}
           .hdr-actions{display:none!important}
           .hdr-row{flex-wrap:nowrap!important;gap:6px!important}
+          .main-content{padding-bottom:80px!important}
         }
         @media(min-width:681px){
           .mobile-dock{display:none!important}
@@ -428,7 +433,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1060, margin: '0 auto', padding: '20px 16px' }}>
+      <div className="main-content" style={{ maxWidth: 1060, margin: '0 auto', padding: '20px 16px' }}>
 
         {/* ── AUDITORÍA ── */}
         {tab === 'auditoria' && (
@@ -438,7 +443,7 @@ export default function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
               {/* Market card */}
-              <Card>
+              <Card {...cardProps}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   {sectionTitle('Mercado')}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
@@ -477,7 +482,7 @@ export default function App() {
               </Card>
 
               {/* Portfolio card */}
-              <Card>
+              <Card {...cardProps}>
                 {sectionTitle('Cartera')}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <NumInput dark={dark} label="Reserva táctica" value={reserva} onChange={setReserva} unit="€" step={100} hint={'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva)} />
@@ -514,7 +519,7 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800 }}>
 
             {/* Activo + DCA */}
-            <Card>
+            <Card {...cardProps}>
               {sectionTitle('General')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
@@ -532,7 +537,7 @@ export default function App() {
             </Card>
 
             {/* Profiles */}
-            <Card>
+            <Card {...cardProps}>
               {sectionTitle('Perfil de multiplicadores')}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
                 {Object.entries(PROFILES).map(([id, p]) => (
@@ -565,7 +570,7 @@ export default function App() {
             </Card>
 
             {/* Thresholds */}
-            <Card>
+            <Card {...cardProps}>
               {sectionTitle('Umbrales de señal')}
               <div style={{ fontSize: 12, color: T.textSub, marginBottom: 12, lineHeight: 1.5 }}>
                 Valores validados históricamente. Modifica solo si tienes una razón clara.
