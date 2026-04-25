@@ -118,6 +118,8 @@ function calc(mktRaw, portRaw, cfg) {
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
+const escHtml = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+
 function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
   const { level, invFinal, excesoFinal, rationTier, reservaPost, objReserva,
     hasCartera, breakEven, pctRec, totalParts, newParts, isFirst,
@@ -126,7 +128,7 @@ function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
   const { reserva, hasReserva, navEur, capital, parts } = portRaw
   const meta = LM[level] || LM['0-1']
   const date = todayStr()
-  const activo = cfg.activo || 'Activo de referencia: URTH (MSCI World)'
+  const activo = escHtml(cfg.activo || 'Activo de referencia: URTH (MSCI World)')
 
   const html = `<!DOCTYPE html>
 <html lang="es">
