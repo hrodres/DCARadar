@@ -106,17 +106,19 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
         {!protocoloActivo && <div style={alertStyle('info')}>{cResInc ? 'Reserva incompleta — protocolo inactivo. Aplicando DCA base.' : 'Reserva no aportada — introduce el saldo de tu reserva táctica.'}</div>}
       </div>
 
-      <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 12, padding: '12px 14px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10 }}>Señales de mercado</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {condItems.map(({ l, ok, detail, neu }) => {
-            const bg2 = neu ? (dark ? '#3a3a3c' : '#f3f4f6') : ok ? (dark ? '#0f1f13' : '#d1fae5') : (dark ? '#2d1515' : '#fee2e2')
-            const col = neu ? textSub : ok ? '#22c55e' : '#ef4444'
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Señales de mercado</div>
+        <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, overflow: 'hidden' }}>
+          {condItems.map(({ l, ok, detail, neu }, i, arr) => {
+            const dot = neu ? '#8e8e93' : ok ? '#22c55e' : '#ef4444'
+            const detailColor = neu ? textSub : ok ? '#22c55e' : '#ef4444'
             return (
-              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, background: bg2, borderRadius: 8, padding: '5px 10px' }}>
-                <span style={{ fontSize: 12, color: col }}>{neu ? '○' : ok ? '✓' : '✗'}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: col }}>{l}</span>
-                <span style={{ fontSize: 11, color: textSub }}>{detail}</span>
+              <div key={l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: i < arr.length - 1 ? '1px solid ' + cardBorder : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                  <span style={{ fontSize: 15, color: textMain }}>{l}</span>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 600, color: detailColor }}>{detail}</span>
               </div>
             )
           })}
@@ -124,18 +126,30 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
       </div>
 
       {hasCartera && (
-        <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 12, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10 }}>Tu cartera</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Tu cartera</div>
+          {/* Métricas destacadas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             {[
-              { l: 'Nuevas participaciones', v: f4(newParts) },
+              { l: 'Break-Even', v: isFirst ? eur(breakEven) : eur(breakEven), sub: 'precio medio ponderado' },
+              { l: pctRec != null ? 'Recuperación necesaria' : 'Posición', v: pctRec != null ? pct(pctRec) : isFirst ? '1ª aportación' : 'En positivo', vc: pctRec != null ? '#eab308' : '#22c55e', sub: pctRec != null ? 'para alcanzar break-even' : '' },
+            ].map(({ l, v, vc, sub }) => (
+              <div key={l} style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 14, padding: '12px 14px' }}>
+                <div style={{ fontSize: 11, color: textSub, marginBottom: 4 }}>{l}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: vc || textMain }}>{v}</div>
+                {sub && <div style={{ fontSize: 11, color: textSub, marginTop: 2 }}>{sub}</div>}
+              </div>
+            ))}
+          </div>
+          {/* Filas iOS */}
+          <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, overflow: 'hidden' }}>
+            {[
+              { l: 'Participaciones nuevas', v: f4(newParts) },
               { l: 'Total participaciones',  v: f4(totalParts) },
-              { l: 'Break-Even',             v: isFirst ? eur(breakEven) + ' (= NAV)' : eur(breakEven) },
-              { l: '% Recuperación', v: pctRec != null ? pct(pctRec) : isFirst ? 'N/A — 1ª aportación' : '✓ NAV > Break-Even', vc: pctRec != null ? '#eab308' : '#22c55e' },
-            ].map(({ l, v, vc }) => (
-              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid ' + cardBorder }}>
-                <span style={{ fontSize: 12, color: textSub }}>{l}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: vc || textMain }}>{v}</span>
+            ].map(({ l, v }, i, arr) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', borderBottom: i < arr.length - 1 ? '1px solid ' + cardBorder : 'none' }}>
+                <span style={{ fontSize: 15, color: textMain }}>{l}</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: textSub }}>{v}</span>
               </div>
             ))}
           </div>
