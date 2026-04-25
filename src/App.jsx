@@ -394,17 +394,7 @@ export default function App() {
           {/* Left: title + badge debajo */}
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.3px' }}>DCA Radar</div>
-            {result ? (() => {
-              const meta = LM[result.level] || LM['0-1']
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, background: dark ? meta.bgD : meta.bg, border: '1px solid ' + (dark ? meta.borderD : meta.border), borderRadius: 8, padding: '3px 10px', width: 'fit-content' }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: meta.color, whiteSpace: 'nowrap' }}>{result.level} {meta.label}</span>
-                  <span style={{ fontSize: 12, color: dark ? meta.borderD : meta.border }}>·</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text, whiteSpace: 'nowrap' }}>{eur(result.invFinal)}</span>
-                </div>
-              )
-            })() : <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>Auditoría táctica mensual</div>}
+            <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>Auditoría táctica mensual</div>
           </div>
           {/* Right: siempre visible — acciones + dark + tabs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
