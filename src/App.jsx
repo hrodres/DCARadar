@@ -443,56 +443,62 @@ export default function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
               {/* Market card */}
-              <Card {...cardProps}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  {sectionTitle('Mercado')}
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-                    {fs === 'ok' && fetchDate && <span style={{ fontSize: 10, color: T.textSub }}>a {fetchDate}</span>}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mercado</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {fs === 'ok' && fetchDate && <span style={{ fontSize: 11, color: T.textSub }}>a {fetchDate}</span>}
                     <button onClick={doFetch} disabled={fs === 'loading'} style={{
                       background: fs === 'ok' ? (dark ? '#0f1f13' : '#f0fdf4') : T.text,
                       border: '1px solid ' + (fs === 'ok' ? '#16a34a' : 'transparent'),
                       color: fs === 'ok' ? '#22c55e' : T.pageBg,
-                      borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                      cursor: fs === 'loading' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                      borderRadius: 10, padding: '6px 14px', fontSize: 13, fontWeight: 600,
+                      cursor: fs === 'loading' ? 'wait' : 'pointer', fontFamily: 'inherit',
                     }}>
-                      {fs === 'loading' ? '⟳' : fs === 'ok' ? '✓ Refrescar' : '⟳ Auto-fetch'}
+                      {fs === 'loading' ? '⟳' : fs === 'ok' ? '✓ Refrescar' : '⟳ Fetch'}
                     </button>
                   </div>
                 </div>
-                {fs === 'error' && <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 10 }}>Error: {ferr} — Introduce manualmente.</div>}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <NumInput dark={dark} label="URTH Precio" value={mkt.urthPrice} onChange={v => setMkt(m => ({ ...m, urthPrice: v }))} unit="$" step={0.5} />
-                    <NumInput dark={dark} label="SMA 200" value={mkt.sma200} onChange={v => setMkt(m => ({ ...m, sma200: v }))} unit="$" step={0.5} />
-                  </div>
-                  <NumInput dark={dark} label="Drawdown vs máximo histórico" value={mkt.drawdown} onChange={v => setMkt(m => ({ ...m, drawdown: v }))} unit="%" step={0.1} hint="Negativo, ej: −1.3" />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <NumInput dark={dark} label="VIX" value={mkt.vix} onChange={v => setMkt(m => ({ ...m, vix: v }))} step={0.1} hint="cboe.com" />
-                    <NumInput dark={dark} label="VSTOXX" value={mkt.vstoxx} onChange={v => setMkt(m => ({ ...m, vstoxx: v }))} step={0.1} hint="deutsche-boerse.com" optional />
-                  </div>
-                </div>
-                {mkt.urthPrice && mkt.sma200 && (
-                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444' }} />
-                    <span style={{ fontSize: 12, color: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444', fontWeight: 500 }}>
-                      {pf(mkt.urthPrice) > pf(mkt.sma200) ? 'Tendencia alcista' : 'Tendencia bajista'}
-                    </span>
-                  </div>
-                )}
-              </Card>
+                {fs === 'error' && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 8, padding: '0 4px' }}>Error: {ferr}</div>}
+                <Card {...cardProps} style={{ padding: '0 16px' }}>
+                  {[
+                    { label: 'URTH Precio', value: mkt.urthPrice, onChange: v => setMkt(m => ({ ...m, urthPrice: v })), unit: '$', step: 0.5 },
+                    { label: 'SMA 200', value: mkt.sma200, onChange: v => setMkt(m => ({ ...m, sma200: v })), unit: '$', step: 0.5 },
+                    { label: 'Drawdown', value: mkt.drawdown, onChange: v => setMkt(m => ({ ...m, drawdown: v })), unit: '%', step: 0.1, hint: 'Negativo, ej: −1.3' },
+                    { label: 'VIX', value: mkt.vix, onChange: v => setMkt(m => ({ ...m, vix: v })), step: 0.1, hint: 'cboe.com' },
+                    { label: 'VSTOXX', value: mkt.vstoxx, onChange: v => setMkt(m => ({ ...m, vstoxx: v })), step: 0.1, hint: 'optional', optional: true },
+                  ].map((f, i, arr) => (
+                    <div key={f.label} style={{ borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                      <NumInput dark={dark} {...f} />
+                    </div>
+                  ))}
+                  {mkt.urthPrice && mkt.sma200 && (
+                    <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid ' + T.cardBorder }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444', flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444', fontWeight: 500 }}>
+                        {pf(mkt.urthPrice) > pf(mkt.sma200) ? 'Tendencia alcista' : 'Tendencia bajista'}
+                      </span>
+                    </div>
+                  )}
+                </Card>
+              </div>
 
               {/* Portfolio card */}
-              <Card {...cardProps}>
-                {sectionTitle('Cartera')}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <NumInput dark={dark} label="Reserva táctica" value={reserva} onChange={setReserva} unit="€" step={100} hint={'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva)} />
-                  <NumInput dark={dark} label="NAV del fondo" value={navEur} onChange={setNavEur} unit="€" step={0.1} hint="Precio de una participación hoy" optional />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <NumInput dark={dark} label="Capital invertido" value={capital} onChange={setCapital} unit="€" step={100} optional />
-                    <NumInput dark={dark} label="Participaciones" value={parts} onChange={setParts_} step={0.1} optional />
-                  </div>
-                </div>
-              </Card>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Cartera</div>
+                <Card {...cardProps} style={{ padding: '0 16px' }}>
+                  {[
+                    { label: 'Reserva táctica', value: reserva, onChange: setReserva, unit: '€', step: 100, hint: 'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva) },
+                    { label: 'NAV del fondo', value: navEur, onChange: setNavEur, unit: '€', step: 0.1, hint: 'Precio de una participación', optional: true },
+                    { label: 'Capital invertido', value: capital, onChange: setCapital, unit: '€', step: 100, optional: true },
+                    { label: 'Participaciones', value: parts, onChange: setParts_, step: 0.1, optional: true },
+                  ].map((f, i, arr) => (
+                    <div key={f.label} style={{ borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                      <NumInput dark={dark} {...f} />
+                    </div>
+                  ))}
+                </Card>
+              </div>
 
               {/* Sources */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
