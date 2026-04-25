@@ -375,6 +375,8 @@ export default function App() {
         @media(max-width:680px){
           .two-col{grid-template-columns:1fr!important}
           .mobile-dock{display:flex!important}
+          .hdr-actions{display:none!important}
+          .hdr-row{flex-wrap:nowrap!important;gap:6px!important}
         }
         @media(min-width:681px){
           .mobile-dock{display:none!important}
@@ -388,7 +390,7 @@ export default function App() {
             <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.3px' }}>DCA Radar</div>
             <div style={{ fontSize: 11, color: T.textSub }}>Auditoría táctica mensual</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="hdr-row" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {/* Level badge */}
             {result && (() => {
               const meta = LM[result.level] || LM['0-1']
@@ -400,9 +402,9 @@ export default function App() {
                 </div>
               )
             })()}
-            {/* Actions */}
+            {/* Actions — oculto en móvil, usar el dock inferior */}
             {result && (
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="hdr-actions" style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
                   style={{ background: copied ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (copied ? '#16a34a' : T.cardBorder), color: copied ? '#22c55e' : T.text, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                   {copied ? '✓' : '⊞'} Sheets
@@ -600,14 +602,20 @@ export default function App() {
       {result && (() => {
         const meta = LM[result.level] || LM['0-1']
         return (
-          <div className="mobile-dock" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: dark ? meta.bgD : meta.bg, borderTop: '2px solid ' + (dark ? meta.borderD : meta.border), padding: '12px 16px', alignItems: 'center', justifyContent: 'space-between', gap: 12, zIndex: 200 }}>
+          <div className="mobile-dock" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: dark ? meta.bgD : meta.bg, borderTop: '2px solid ' + (dark ? meta.borderD : meta.border), padding: '10px 16px', alignItems: 'center', justifyContent: 'space-between', gap: 8, zIndex: 200 }}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Nivel activo</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: meta.color }}>{result.level} — {meta.label}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Nivel · Invertir</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: meta.color }}>{result.level} · {eur(result.invFinal)}</div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Invertir</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: T.text }}>{eur(result.invFinal)}</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                style={{ background: copied ? '#16a34a' : T.cardBg, border: '1px solid ' + T.cardBorder, color: copied ? 'white' : T.text, borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {copied ? '✓' : '⊞'}
+              </button>
+              <button onClick={() => generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark)}
+                style={{ background: T.text, color: T.pageBg, border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                PDF
+              </button>
             </div>
           </div>
         )

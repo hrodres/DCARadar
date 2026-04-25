@@ -17,9 +17,9 @@ export default function NumInput({ label, value, onChange, unit, step, hint, opt
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: c.bg, border: '1px solid ' + c.border, borderRadius: 10, padding: '8px 10px' }}>
         <button onClick={() => adj(-1)} style={{ minWidth: 32, minHeight: 32, borderRadius: 7, border: '1px solid ' + c.border, background: c.btn, color: c.text, cursor: 'pointer', fontFamily: 'inherit', fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>&minus;</button>
-        <input type="number" step={step} value={value} placeholder="—"
+        <input type="text" inputMode="decimal" value={value} placeholder="—"
           onChange={e => onChange(e.target.value)}
-          style={{ flex: 1, background: 'transparent', border: 'none', color: c.text, fontSize: 17, fontWeight: 600, fontFamily: 'inherit', outline: 'none', minWidth: 0, textAlign: 'center' }} />
+          style={{ flex: 1, background: 'transparent', border: 'none', color: c.text, fontSize: 16, fontWeight: 600, fontFamily: 'inherit', outline: 'none', minWidth: 0, textAlign: 'center' }} />
         <button onClick={() => adj(1)} style={{ minWidth: 32, minHeight: 32, borderRadius: 7, border: '1px solid ' + c.border, background: c.btn, color: c.text, cursor: 'pointer', fontFamily: 'inherit', fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>+</button>
         {unit && <span style={{ fontSize: 12, color: c.sub, flexShrink: 0 }}>{unit}</span>}
       </div>
