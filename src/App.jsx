@@ -315,7 +315,7 @@ export default function App() {
         sma200:    String(Math.round(d.sma200    * 100) / 100),
         drawdown:  String(Math.round(d.drawdown  * 100) / 100),
         vix:       String(Math.round(d.vix       * 100) / 100),
-        vstoxx:    m.vstoxx,
+        vstoxx:    d.vstoxx != null ? String(Math.round(d.vstoxx * 100) / 100) : m.vstoxx,
       }))
       setFetchDate(d.lastDate || todayStr())
       setFs('ok')
