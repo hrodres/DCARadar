@@ -2,12 +2,36 @@ import { LM, eur, pct, fN, f4 } from '../utils.js'
 
 export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
   if (!result) {
-    const c = dark ? '#8e8e93' : '#aeaeb2'
+    const cardBg  = dark ? '#2c2c2e' : 'white'
+    const border  = dark ? '#3a3a3c' : '#e5e5ea'
+    const textSub = dark ? '#8e8e93' : '#6e6e73'
+    const steps = [
+      { n: '1', label: 'Pulsa', detail: '⟳ Fetch para cargar URTH, SMA200, Drawdown y VIX automáticamente' },
+      { n: '2', label: 'Introduce', detail: 'VSTOXX manualmente si lo tienes (opcional)' },
+      { n: '3', label: 'Añade', detail: 'tu reserva táctica para activar el protocolo completo' },
+    ]
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, gap: 12, color: c }}>
-        <div style={{ fontSize: 44 }}>📡</div>
-        <div style={{ fontSize: 16, fontWeight: 600 }}>Esperando datos de mercado</div>
-        <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>Introduce los 4 datos de mercado y el veredicto aparecerá aquí automáticamente.</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ background: cardBg, border: '1px solid ' + border, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 36, lineHeight: 1 }}>📡</div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: dark ? '#f5f5f7' : '#1d1d1f' }}>Sin datos aún</div>
+              <div style={{ fontSize: 13, color: textSub, marginTop: 2 }}>El veredicto aparecerá aquí al instante</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {steps.map(s => (
+              <div key={s.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: dark ? '#3a3a3c' : '#f2f2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: textSub, flexShrink: 0 }}>{s.n}</div>
+                <div style={{ paddingTop: 3 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: dark ? '#f5f5f7' : '#1d1d1f' }}>{s.label} </span>
+                  <span style={{ fontSize: 14, color: textSub }}>{s.detail}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
