@@ -105,8 +105,8 @@ function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
   </div>
 </div>
 
-${rationTier === 3 ? '<div class="alert alert-crit">🔴 Racionamiento crítico — la operación agotaría la reserva táctica. Inversión reducida al mínimo (DCA × 0.5).</div>' : ''}
-${rationTier === 2 ? '<div class="alert alert-warn">⚠ Racionamiento activo — la operación dejaría la reserva por debajo del ' + cfg.rationBrake + '% del objetivo. Inversión dividida entre 2.</div>' : ''}
+${rationTier === 3 ? '<div class="alert alert-crit">🔴 Racionamiento crítico — reserva insuficiente para el exceso. Invierte solo el DCA base.</div>' : ''}
+${rationTier === 2 ? '<div class="alert alert-warn">⚠ Racionamiento activo — reserva por debajo del ' + cfg.rationBrake + '% del objetivo. Exceso reducido a la mitad.</div>' : ''}
 ${result.rationAlert && rationTier === 0 ? '<div class="alert alert-info">Reserva por debajo del ' + cfg.rationWarn + '% del objetivo. Sin racionamiento aún — vigilar evolución.</div>' : ''}
 ${!protocoloActivo ? '<div class="alert alert-info">Protocolo táctico inactivo — reserva ' + (hasReserva ? 'incompleta (' + eur(portRaw.reserva) + ' de ' + eur(objReserva) + ')' : 'no aportada') + '. Aplicando DCA base.</div>' : ''}
 ${level === '-1' && !result.cResInc ? '<div class="alert alert-info">Mercado en euforia — inversión reducida. Momento de acumular reserva táctica.</div>' : ''}
@@ -476,7 +476,7 @@ export default function App() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Cartera</div>
                 <Card {...cardProps} style={{ padding: '0 16px' }}>
                   {[
-                    { label: 'Reserva táctica', value: reserva, onChange: setReserva, unit: '€', step: 100, hint: 'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva) },
+                    { label: 'Reserva táctica', value: reserva, onChange: setReserva, unit: '€', step: 100, hint: 'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva) + ' · Mantener en fondo monetario' },
                     { label: 'NAV del fondo', value: navEur, onChange: setNavEur, unit: '€', step: 0.1, hint: 'Precio de una participación', optional: true },
                     { label: 'Capital invertido', value: capital, onChange: setCapital, unit: '€', step: 100, optional: true },
                     { label: 'Participaciones', value: parts, onChange: setParts_, step: 0.1, optional: true },

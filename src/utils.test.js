@@ -56,11 +56,13 @@ describe('calc — reserva incompleta (protocolo activo con racionamiento)', () 
 
   it('crisis + reserva incompleta → protocolo activo, nivel elevado, racionamiento', () => {
     // INC_RESERVE: reserva=2000, objReserva=4000. Crash: VIX=35, DD=-25, bajista
+    // nivel 3+: invCalc=2000, excesoBase=1500, postOp=500 < 1000(25%) → tier 2
+    // invFinal = dcaBase(500) + excesoBase/2(750) = 1250
     const r = calc(mkt(50, 80, -25, 35), INC_RESERVE, CFG)
     expect(r.protocoloActivo).toBe(true)
     expect(r.level).toBe('3+')
-    expect(r.rationTier).toBe(2) // postOp=500 < objReserva*25%=1000
-    expect(r.invFinal).toBe(1000) // invCalc(2000)/2
+    expect(r.rationTier).toBe(2)
+    expect(r.invFinal).toBe(1250)
   })
 })
 
@@ -146,20 +148,21 @@ describe('calc — nivel -1 EUFORIA', () => {
 describe('calc — racionamiento', () => {
   const CFG_SMALL = { ...CFG, multReserva: 3 } // objReserva = 1500
 
-  it('tier 2: postOp < 25% objReserva → inversión ÷2', () => {
+  it('tier 2: postOp < 25% objReserva → recorta solo el exceso a la mitad', () => {
     // reserva=1600, excesoBase=1500(nivel3+) → postOp=100 < 375(25%)
+    // invFinal = dcaBase(500) + excesoBase/2(750) = 1250
     const port = { reserva: 1600, hasReserva: true, navEur: 0, capital: 0, parts: 0 }
     const r = calc(mkt(50, 80, -25, 35), port, CFG_SMALL)
     expect(r.rationTier).toBe(2)
-    expect(r.invFinal).toBe(1000) // invCalc(2000)/2
+    expect(r.invFinal).toBe(1250)
   })
 
-  it('tier 3: postOp <= 0 → inversión mínima (DCA × 0.5)', () => {
+  it('tier 3: postOp <= 0 → inversión mínima = DCA base (nunca por debajo)', () => {
     // reserva=1500, excesoBase=1500 → postOp=0
     const port = { reserva: 1500, hasReserva: true, navEur: 0, capital: 0, parts: 0 }
     const r = calc(mkt(50, 80, -25, 35), port, CFG_SMALL)
     expect(r.rationTier).toBe(3)
-    expect(r.invFinal).toBe(250) // dcaBase * 0.5
+    expect(r.invFinal).toBe(500) // dcaBase, nunca dcaBase * 0.5
   })
 
   it('rationAlert true cuando reserva < rationWarn% del objetivo', () => {

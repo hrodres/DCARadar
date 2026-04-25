@@ -74,12 +74,12 @@ export function calc(mktRaw, portRaw, cfg) {
   if (hasReserva && protocoloActivo) {
     const postOp = reserva - excesoBase
     rationAlert = reserva < objReserva * (rationWarn / 100)
-    if (postOp <= 0)                                     { invFinal = dcaBase * 0.5; rationTier = 3 }
-    else if (postOp < objReserva * (rationBrake / 100)) { invFinal = invCalc / 2;   rationTier = 2 }
+    if (postOp <= 0)                                     { invFinal = dcaBase;                    rationTier = 3 }
+    else if (postOp < objReserva * (rationBrake / 100)) { invFinal = dcaBase + excesoBase / 2;   rationTier = 2 }
   }
 
   const excesoFinal    = Math.max(0, invFinal - dcaBase)
-  const reservaPostRaw = hasReserva ? reserva - excesoFinal : null
+  const reservaPostRaw = hasReserva ? reserva - excesoFinal + invRes : null
   const reservaPost    = reservaPostRaw != null ? Math.max(0, reservaPostRaw) : null
   const reservaAgotada = reservaPostRaw != null && reservaPostRaw < 0
 

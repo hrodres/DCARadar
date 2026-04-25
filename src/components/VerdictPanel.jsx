@@ -98,8 +98,8 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
             </div>
           </div>
         )}
-        {rationTier === 3 && <div style={alertStyle('crit')}>🔴 Racionamiento crítico — la operación agotaría la reserva. Inversión reducida al mínimo.</div>}
-        {rationTier === 2 && <div style={alertStyle('warn')}>⚠ Racionamiento activo — inversión ÷2 para proteger la reserva táctica.</div>}
+        {rationTier === 3 && <div style={alertStyle('crit')}>🔴 Racionamiento crítico — reserva insuficiente para el exceso. Inviertes solo el DCA base.</div>}
+        {rationTier === 2 && <div style={alertStyle('warn')}>⚠ Racionamiento activo — reserva baja. Exceso reducido a la mitad, DCA base garantizado.</div>}
         {rationAlert && rationTier === 0 && <div style={alertStyle('info')}>Reserva por debajo del {cfg.rationWarn}% del objetivo. Sin racionamiento aún.</div>}
         {level === '-1' && !cResInc && <div style={alertStyle('info')}>Mercado en euforia — inversión reducida. Momento de acumular reserva.</div>}
         {level === '-1' && cResInc && <div style={alertStyle('info')}>Nivel -1 + Reserva incompleta: {eur(invFinal)} a inversión + {eur(invRes)} a reserva.</div>}
