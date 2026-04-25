@@ -501,17 +501,20 @@ export default function App() {
               </div>
 
               {/* Sources */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 4px' }}>
                 {[
-                  { l: 'URTH + VIX — Auto', url: 'https://finance.yahoo.com/quote/URTH/', auto: true },
-                  { l: 'VSTOXX', url: 'https://live.deutsche-boerse.com/indices/euro-stoxx-50-volatility-vstoxx', auto: false },
-                  { l: 'NAV', url: '', auto: false },
-                ].map(s => s.url ? (
-                  <a key={s.l} href={s.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: s.auto ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (s.auto ? '#16a34a' : T.cardBorder), borderRadius: 7, padding: '4px 10px', fontSize: 11, fontWeight: 500, color: s.auto ? '#22c55e' : T.textSub }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.auto ? '#22c55e' : T.textSub }} />{s.l} ↗
-                  </a>
-                ) : null)}
-                <span style={{ fontSize: 11, color: T.textSub, alignSelf: 'center' }}>NAV: consulta tu proveedor de fondo</span>
+                  { l: 'URTH + VIX', url: 'https://finance.yahoo.com/quote/URTH/', filled: fs === 'ok' },
+                  { l: 'VSTOXX', url: 'https://live.deutsche-boerse.com/indices/euro-stoxx-50-volatility-vstoxx', filled: hasVstoxx },
+                ].map(s => {
+                  const ok = s.filled
+                  return (
+                    <a key={s.l} href={s.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: ok ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (ok ? '#16a34a' : T.cardBorder), borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 500, color: ok ? '#22c55e' : T.textSub, textDecoration: 'none' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ok ? '#22c55e' : T.textSub, flexShrink: 0 }} />
+                      {s.l} ↗
+                    </a>
+                  )
+                })}
+                <span style={{ fontSize: 12, color: T.textSub, alignSelf: 'center' }}>NAV: consulta tu bróker</span>
               </div>
             </div>
 
