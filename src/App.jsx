@@ -390,28 +390,28 @@ export default function App() {
 
       {/* HEADER */}
       <div style={{ background: T.hdrBg, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid ' + T.hdrBorder, padding: '12px 20px', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          {/* Left: title + badge debajo */}
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.3px' }}>DCA Radar</div>
-            <div style={{ fontSize: 11, color: T.textSub }}>Auditoría táctica mensual</div>
-          </div>
-          <div className="hdr-row" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {/* Level badge */}
-            {result && (() => {
+            {result ? (() => {
               const meta = LM[result.level] || LM['0-1']
               return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: dark ? meta.bgD : meta.bg, border: '1px solid ' + (dark ? meta.borderD : meta.border), borderRadius: 10, padding: '5px 12px' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: meta.color }}>{result.level}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: meta.color }}>{result.level} — {meta.label}</span>
+                  <span style={{ fontSize: 13, color: T.textSub }}>·</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{eur(result.invFinal)}</span>
                 </div>
               )
-            })()}
-            {/* Actions — oculto en móvil, usar el dock inferior */}
+            })() : <div style={{ fontSize: 11, color: T.textSub }}>Auditoría táctica mensual</div>}
+          </div>
+          {/* Right: siempre visible — acciones + dark + tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {result && (
               <div className="hdr-actions" style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                  style={{ background: copied ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (copied ? '#16a34a' : T.cardBorder), color: copied ? '#22c55e' : T.text, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  style={{ background: copied ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (copied ? '#16a34a' : T.cardBorder), color: copied ? '#22c55e' : T.text, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copied ? '✓' : '⊞'} Sheets
                 </button>
                 <button onClick={() => generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark)}
@@ -420,11 +420,9 @@ export default function App() {
                 </button>
               </div>
             )}
-            {/* Dark toggle */}
             <button onClick={() => setDark(d => !d)} style={{ background: T.cardBg, border: '1px solid ' + T.cardBorder, borderRadius: 8, padding: '6px 10px', fontSize: 14, cursor: 'pointer', color: T.text }}>
               {dark ? '☀️' : '🌙'}
             </button>
-            {/* Tabs */}
             <div style={{ display: 'flex', gap: 3, background: T.tabBg, borderRadius: 10, padding: 3 }}>
               {tabBtn('auditoria', 'Auditoría')}
               {tabBtn('config', '⚙ Config')}
@@ -536,11 +534,17 @@ export default function App() {
                   <input value={cfg.activo} onChange={e => updCfg('activo', e.target.value)} placeholder="Ej: Vanguard Global Stock EUR Acc / IWDA / VWCE"
                     style={{ width: '100%', background: dark ? '#3a3a3c' : 'white', border: '1px solid ' + T.cardBorder, borderRadius: 10, padding: '10px 14px', fontSize: 14, color: T.text, fontFamily: 'inherit', outline: 'none' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-                  <NumInput dark={dark} label="DCA Base mensual" value={cfg.dcaBase} onChange={v => updCfg('dcaBase', v)} unit="€" step={50} hint="Actualizar cada enero por IPC" />
-                  <NumInput dark={dark} label="Multiplicador reserva" value={cfg.multReserva} onChange={v => updCfg('multReserva', v)} step={1} hint={'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva)} />
-                  <NumInput dark={dark} label="Alerta reserva %" value={cfg.rationWarn} onChange={v => updCfg('rationWarn', v)} step={5} hint="Aviso temprano" />
-                  <NumInput dark={dark} label="Freno reserva %" value={cfg.rationBrake} onChange={v => updCfg('rationBrake', v)} step={5} hint="Activa racionamiento ÷2" />
+                <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
+                  {[
+                    { label: 'DCA Base mensual',     value: cfg.dcaBase,     onChange: v => updCfg('dcaBase', v),     unit: '€', step: 50,  hint: 'Actualizar cada enero por IPC' },
+                    { label: 'Multiplicador reserva', value: cfg.multReserva, onChange: v => updCfg('multReserva', v), step: 1,   hint: 'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva) },
+                    { label: 'Alerta reserva %',      value: cfg.rationWarn,  onChange: v => updCfg('rationWarn', v),  step: 5,   hint: 'Aviso temprano' },
+                    { label: 'Freno reserva %',       value: cfg.rationBrake, onChange: v => updCfg('rationBrake', v), step: 5,   hint: 'Activa racionamiento ÷2' },
+                  ].map((f, i, arr) => (
+                    <div key={f.label} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                      <NumInput dark={dark} {...f} />
+                    </div>
+                  ))}
                 </div>
               </div>
             </Card>
@@ -558,13 +562,10 @@ export default function App() {
                   }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>{p.label}</div>
                     <div style={{ fontSize: 11, color: T.textSub, lineHeight: 1.4 }}>{p.desc}</div>
-                    <div style={{ marginTop: 8, fontSize: 11, color: T.textSub }}>
-                      3+: ×{p.multN3p} · 3: ×{p.multN3} · 2: ×{p.multN2}
-                    </div>
                   </button>
                 ))}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+              <div style={{ background: T.pageBg, borderRadius: 16, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
                 {[
                   { l: 'Nivel 3+ Crash ×',  k: 'multN3p', c: '#ef4444' },
                   { l: 'Nivel 3 Pleno ×',   k: 'multN3',  c: '#f97316' },
@@ -572,8 +573,10 @@ export default function App() {
                   { l: 'Nivel 0-1 Base ×',  k: 'multN01', c: '#22c55e' },
                   { l: 'Nivel -1 Inv. ×',   k: 'multN1i', c: '#3b82f6' },
                   { l: 'Nivel -1 Res. ×',   k: 'multN1r', c: '#8b5cf6' },
-                ].map(({ l, k, c }) => (
-                  <NumInput key={k} dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={0.5} hint={'= ' + eur(cfg.dcaBase * cfg[k])} accent={c} />
+                ].map(({ l, k, c }, i, arr) => (
+                  <div key={k} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                    <NumInput dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={0.5} hint={'= ' + eur(cfg.dcaBase * cfg[k])} accent={c} />
+                  </div>
                 ))}
               </div>
             </Card>
@@ -584,7 +587,7 @@ export default function App() {
               <div style={{ fontSize: 12, color: T.textSub, marginBottom: 12, lineHeight: 1.5 }}>
                 Valores validados históricamente. Modifica solo si tienes una razón clara.
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+              <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
                 {[
                   { l: 'Pánico VIX >',     k: 'vixPanic', s: 1 },
                   { l: 'Euforia VIX <',    k: 'vixEuph',  s: 1 },
@@ -593,8 +596,10 @@ export default function App() {
                   { l: 'DD Moderado < %',  k: 'ddMod',    s: 1, hint: 'ej: −10' },
                   { l: 'DD Severo < %',    k: 'ddSev',    s: 1, hint: 'ej: −20' },
                   { l: 'Euforia DD >= %',  k: 'ddEuph',   s: 0.1, hint: 'ej: −0.5' },
-                ].map(({ l, k, s, hint: h }) => (
-                  <NumInput key={k} dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={s} hint={h} />
+                ].map(({ l, k, s, hint: h }, i, arr) => (
+                  <div key={k} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                    <NumInput dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={s} hint={h} />
+                  </div>
                 ))}
               </div>
             </Card>
