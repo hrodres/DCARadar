@@ -38,7 +38,7 @@ export function calc(mktRaw, portRaw, cfg) {
 
   const objReserva = dcaBase * multReserva
   const reservaCompleta = hasReserva && reserva >= objReserva
-  const protocoloActivo = reservaCompleta
+  const protocoloActivo = hasReserva
 
   const cVixP  = vix > vixPanic
   const cVstP  = hasVstoxx && vstoxx > vstPanic

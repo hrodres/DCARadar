@@ -39,17 +39,28 @@ describe('calc — protocolo inactivo', () => {
     expect(r.protocoloActivo).toBe(false)
   })
 
-  it('reserva incompleta → nivel 0-1, DCA base', () => {
-    const r = calc(mkt(100, 80, -3, 18), INC_RESERVE, CFG)
-    expect(r.level).toBe('0-1')
-    expect(r.invFinal).toBe(500)
-    expect(r.protocoloActivo).toBe(false)
-    expect(r.cResInc).toBe(true)
-  })
-
   it('incluso con condiciones de crash, sin reserva → 0-1', () => {
     const r = calc(mkt(50, 80, -25, 40), NO_RESERVE, CFG)
     expect(r.level).toBe('0-1')
+  })
+})
+
+describe('calc — reserva incompleta (protocolo activo con racionamiento)', () => {
+  it('mercado normal + reserva incompleta → protocolo activo, nivel 0-1', () => {
+    const r = calc(mkt(100, 80, -3, 18), INC_RESERVE, CFG)
+    expect(r.protocoloActivo).toBe(true)
+    expect(r.cResInc).toBe(true)
+    expect(r.level).toBe('0-1')
+    expect(r.invFinal).toBe(500)
+  })
+
+  it('crisis + reserva incompleta → protocolo activo, nivel elevado, racionamiento', () => {
+    // INC_RESERVE: reserva=2000, objReserva=4000. Crash: VIX=35, DD=-25, bajista
+    const r = calc(mkt(50, 80, -25, 35), INC_RESERVE, CFG)
+    expect(r.protocoloActivo).toBe(true)
+    expect(r.level).toBe('3+')
+    expect(r.rationTier).toBe(2) // postOp=500 < objReserva*25%=1000
+    expect(r.invFinal).toBe(1000) // invCalc(2000)/2
   })
 })
 
@@ -151,9 +162,15 @@ describe('calc — racionamiento', () => {
     expect(r.invFinal).toBe(250) // dcaBase * 0.5
   })
 
-  it('rationAlert es siempre false cuando el protocolo está activo (reserva >= objReserva)', () => {
-    // Bug conocido: rationAlert requiere reserva < objReserva*50% pero el protocolo
-    // solo activa con reserva >= objReserva. Son condiciones mutuamente excluyentes.
+  it('rationAlert true cuando reserva < rationWarn% del objetivo', () => {
+    // reserva=1900 < objReserva*50%(2000) → rationAlert=true, sin racionamiento aún
+    const port = { reserva: 1900, hasReserva: true, navEur: 0, capital: 0, parts: 0 }
+    const r = calc(mkt(100, 80, -3, 20), port, CFG)
+    expect(r.rationAlert).toBe(true)
+    expect(r.rationTier).toBe(0) // mercado normal, sin exceso
+  })
+
+  it('sin alerta cuando reserva >= rationWarn% del objetivo', () => {
     const port = { reserva: 4000, hasReserva: true, navEur: 0, capital: 0, parts: 0 }
     const r = calc(mkt(100, 80, -3, 20), port, CFG)
     expect(r.rationAlert).toBe(false)

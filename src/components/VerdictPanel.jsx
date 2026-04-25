@@ -103,7 +103,7 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
         {rationAlert && rationTier === 0 && <div style={alertStyle('info')}>Reserva por debajo del {cfg.rationWarn}% del objetivo. Sin racionamiento aún.</div>}
         {level === '-1' && !cResInc && <div style={alertStyle('info')}>Mercado en euforia — inversión reducida. Momento de acumular reserva.</div>}
         {level === '-1' && cResInc && <div style={alertStyle('info')}>Nivel -1 + Reserva incompleta: {eur(invFinal)} a inversión + {eur(invRes)} a reserva.</div>}
-        {!protocoloActivo && <div style={alertStyle('info')}>{cResInc ? 'Reserva incompleta — protocolo inactivo. Aplicando DCA base.' : 'Reserva no aportada — introduce el saldo de tu reserva táctica.'}</div>}
+        {!protocoloActivo && <div style={alertStyle('info')}>Reserva no aportada — introduce el saldo de tu reserva táctica.</div>}
       </div>
 
       <div>
