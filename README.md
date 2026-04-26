@@ -35,7 +35,7 @@ Si la reserva es baja, el sistema la protege automáticamente:
 
 ### Pestaña Auditoría
 
-1. Pulsa **⟳ Fetch** para cargar URTH, SMA200, Drawdown y VIX automáticamente
+1. Pulsa **⟳ Actualizar** para cargar URTH, SMA200, Drawdown y VIX automáticamente
 2. Introduce el **VSTOXX** manualmente si lo consultas (opcional)
 3. Introduce el **saldo actual de tu reserva táctica**
 4. Opcionalmente introduce los datos de tu cartera (NAV, capital invertido, participaciones)
@@ -85,13 +85,32 @@ Cabeceras para la primera fila (pegar una sola vez):
 2. Conecta en [vercel.com](https://vercel.com)
 3. Vercel detecta Vite automáticamente — Deploy
 
-La función serverless `api/market.js` actúa de proxy para evitar restricciones CORS de Yahoo Finance.
+Las funciones serverless actúan de proxy para evitar restricciones CORS de Yahoo Finance:
+
+| Función | Uso |
+|---|---|
+| `api/market.js` | Datos de mercado actuales (auditoría mensual) |
+| `api/backtest.js` | Simulación histórica (accesible via `#backtest`) |
+
+## Backtesting
+
+Accesible añadiendo `#backtest` a la URL. No aparece en la navegación principal.
+
+Simula el protocolo mes a mes desde el primer dato disponible de URTH (~2012) usando la configuración activa de la app. Compara tres estrategias:
+
+- **Protocolo DCA** — DCA base mensual + reserva táctica desplegada por señales
+- **DCA puro** — mismo importe fijo cada mes, sin protocolo
+- **Benchmark** — lump sum de la reserva al inicio + DCA puro mensual
+
+Permite seleccionar escenarios predefinidos (Bull 2012–2019, COVID, Bear 2022, 2020–hoy) o un rango de años personalizado.
+
+> Usa datos mensuales de Yahoo Finance y SMA de 10 meses como aproximación al SMA200 diario. Sin VSTOXX (no hay histórico público gratuito).
 
 ## Stack
 
 - React 18 + Vite
 - Vitest (tests unitarios de `calc()`)
-- Vercel (frontend + serverless function)
+- Vercel (frontend + serverless functions)
 
 ## Aviso
 
