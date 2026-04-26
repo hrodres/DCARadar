@@ -129,10 +129,7 @@ La reserva táctica no es capital ocioso: es liquidez con propósito, desplegada
 - React 18 + Vite
 - Vitest (tests unitarios de `calc()`)
 - Vercel (frontend + serverless functions)
-
-## Créditos
-
-Proyecto desarrollado íntegramente mediante vibe coding con [Claude Code](https://claude.ai/code) de Anthropic.
+- [Claude Code](https://claude.ai/code) (Anthropic)
 
 ## Aviso
 
