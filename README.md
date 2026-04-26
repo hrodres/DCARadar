@@ -1,6 +1,8 @@
 # DCA Radar
 
-Herramienta de auditoría táctica mensual para inversores DCA en renta variable global (URTH). Analiza señales de mercado y calcula exactamente cuánto invertir cada mes y cuánto destinar a reserva táctica.
+Herramienta de auditoría táctica mensual para inversores DCA en renta variable global (URTH). Convierte la volatilidad del mercado en un plan de acción claro: analiza cuatro señales simultáneas y calcula exactamente cuánto invertir cada mes.
+
+Es una herramienta de resiliencia inversora — no predice el mercado, sino que elimina la incertidumbre de qué hacer cuando cae.
 
 ## Qué hace
 
@@ -105,6 +107,22 @@ Simula el protocolo mes a mes desde el primer dato disponible de URTH (~2012) us
 Permite seleccionar escenarios predefinidos (Bull 2012–2019, COVID, Bear 2022, 2020–hoy) o un rango de años personalizado.
 
 > Usa datos mensuales de Yahoo Finance y SMA de 10 meses como aproximación al SMA200 diario. Sin VSTOXX (no hay histórico público gratuito).
+
+### Resultados
+
+Comparación contra DCA puro (mismo importe fijo mensual, sin señales) con datos reales de URTH:
+
+| Escenario | Alpha vs DCA puro |
+|---|---|
+| Histórico completo 2012–hoy | +2.3% |
+| Bull run 2012–2019 | +2.2% |
+| COVID 2019–2021 | +7.1% |
+| Bear market 2022 | +1.5% |
+| 2020–hoy | +7.7% |
+
+El protocolo supera al DCA puro en todos los escenarios. La ventaja es mayor en períodos de alta volatilidad — exactamente cuando está diseñado para actuar.
+
+La reserva táctica no es capital ocioso: es liquidez con propósito, desplegada por señales confirmadas en los momentos en que más importa acumular.
 
 ## Stack
 
