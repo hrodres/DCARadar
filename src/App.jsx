@@ -238,7 +238,7 @@ function SectionTitle({ text, color, mb = 12 }) {
 }
 export default function App() {
   const [dark, setDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches || false)
-  const [tab, setTab]   = useState('auditoria')
+  const [tab, setTab]   = useState(() => window.location.hash === '#backtest' ? 'backtest' : 'auditoria')
   const [cfg, setCfg]   = useState(DEF_CFG)
 
   // Market
@@ -419,7 +419,6 @@ export default function App() {
             <div style={{ display: 'flex', gap: 3, background: T.tabBg, borderRadius: 10, padding: 3 }}>
               {tabBtn('auditoria', 'Auditoría')}
               {tabBtn('config', '⚙ Config')}
-              {tabBtn('backtest', '📊 Backtest')}
             </div>
           </div>
         </div>
