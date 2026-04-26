@@ -14,6 +14,9 @@ function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
   const meta = LM[level] || LM['0-1']
   const date = todayStr()
   const activo = escHtml(cfg.activo || 'URTH — MSCI World')
+  const now = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  const pdfTitle = `DCARadar_Informe_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
 
   const kv = (k, v, bold) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v"${bold ? ' style="font-size:12px"' : ''}>${v}</span></div>`
 
@@ -29,7 +32,7 @@ function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>DCA Radar — ${date}</title>
+<title>${pdfTitle}</title>
 <style>
   @page { margin: 1.5cm 2cm; size: A4; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
