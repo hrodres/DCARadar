@@ -256,6 +256,11 @@ export default function App() {
   const [copied,    setCopied]    = useState(false)
   const [copyErr,   setCopyErr]   = useState(false)
 
+  // Backtest
+  const [btState,  setBtState]  = useState('idle')   // idle | loading | done | error
+  const [btResult, setBtResult] = useState(null)
+  const [btErr,    setBtErr]    = useState('')
+
   const updCfg = (k, v) => setCfg(c => {
     const next = { ...c, [k]: typeof v === 'string' ? v : pf(v) }
     // If multiplier changed, switch to custom profile
@@ -264,6 +269,29 @@ export default function App() {
     }
     return next
   })
+
+  const doBacktest = async () => {
+    setBtState('loading')
+    setBtErr('')
+    try {
+      const p = new URLSearchParams({
+        dcaBase: cfg.dcaBase, multReserva: cfg.multReserva,
+        multN3p: cfg.multN3p, multN3: cfg.multN3, multN2: cfg.multN2,
+        multN01: cfg.multN01, multN1i: cfg.multN1i,
+        vixPanic: cfg.vixPanic, vixEuph: cfg.vixEuph,
+        ddMod: cfg.ddMod, ddSev: cfg.ddSev, ddEuph: cfg.ddEuph,
+        rationBrake: cfg.rationBrake,
+      })
+      const resp = await fetch('/api/backtest?' + p)
+      const data = await resp.json()
+      if (data.error) throw new Error(data.error)
+      setBtResult(data)
+      setBtState('done')
+    } catch (e) {
+      setBtErr(e.message)
+      setBtState('error')
+    }
+  }
 
   const applyProfile = (id) => {
     const p = PROFILES[id]
@@ -385,6 +413,7 @@ export default function App() {
             <div style={{ display: 'flex', gap: 3, background: T.tabBg, borderRadius: 10, padding: 3 }}>
               {tabBtn('auditoria', 'Auditoría')}
               {tabBtn('config', '⚙ Config')}
+              {tabBtn('backtest', '📊 Backtest')}
             </div>
           </div>
         </div>
@@ -565,6 +594,164 @@ export default function App() {
             <button onClick={() => setCfg(DEF_CFG)} style={{ background: 'transparent', border: '1px solid ' + T.cardBorder, color: T.textSub, padding: '8px 18px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500, alignSelf: 'flex-start' }}>
               Restaurar valores por defecto
             </button>
+          </div>
+        )}
+
+        {/* ── BACKTEST ── */}
+        {tab === 'backtest' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 900 }}>
+            <Card {...cardProps}>
+              <SectionTitle text="Backtesting histórico" color={T.textSub} />
+              <div style={{ fontSize: 12, color: T.textSub, marginBottom: 16, lineHeight: 1.6 }}>
+                Simula el protocolo mes a mes desde el primer dato disponible de URTH usando tu configuración actual.
+                Compara contra DCA puro (500 €/mes) y contra el benchmark más exigente: lump sum de la reserva inicial + DCA puro.
+                Sin VSTOXX (no hay histórico público gratuito).
+              </div>
+              {btState === 'idle' && (
+                <button onClick={doBacktest}
+                  style={{ background: T.text, color: T.pageBg, border: 'none', borderRadius: 10, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Ejecutar simulación
+                </button>
+              )}
+              {btState === 'loading' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.textSub, fontSize: 14 }}>
+                  <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 18 }}>⟳</span>
+                  Descargando ~13 años de datos y simulando…
+                </div>
+              )}
+              {btState === 'error' && (
+                <div style={{ color: '#ef4444', fontSize: 13 }}>
+                  Error: {btErr}
+                  <button onClick={() => setBtState('idle')} style={{ marginLeft: 12, background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '4px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Reintentar</button>
+                </div>
+              )}
+            </Card>
+
+            {btState === 'done' && btResult && (() => {
+              const { period, months, urthInicio, urthFin, protocol: prot, pureDCA, benchmark: bench, alpha, alphaDCA, levelDist, events } = btResult
+              const urthGain = urthFin && urthInicio ? +((urthFin / urthInicio - 1) * 100).toFixed(1) : null
+              const LMc = { '3+': '#ef4444', '3': '#f97316', '2': '#eab308', '0-1': '#22c55e', '-1': '#3b82f6' }
+              const alphaColor = alpha >= 0 ? '#22c55e' : '#ef4444'
+
+              return (
+                <>
+                  {/* Contexto */}
+                  <Card {...cardProps}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
+                      {[
+                        { l: 'Período', v: period },
+                        { l: 'Meses simulados', v: months },
+                        { l: 'URTH inicio', v: '$' + urthInicio },
+                        { l: 'URTH fin', v: '$' + urthFin },
+                        { l: 'URTH total', v: (urthGain >= 0 ? '+' : '') + urthGain + '%' },
+                      ].map(({ l, v }) => (
+                        <div key={l}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 3 }}>{l}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Tres estrategias */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12 }}>
+                    {[
+                      { label: 'Protocolo DCA', sub: `${eur(cfg.dcaBase)}/mes + reserva ${eur(cfg.dcaBase * cfg.multReserva)}`, d: prot, highlight: true },
+                      { label: 'DCA puro', sub: `${eur(cfg.dcaBase)}/mes sin protocolo`, d: pureDCA, highlight: false },
+                      { label: 'Benchmark', sub: bench.note, d: bench, highlight: false },
+                    ].map(({ label, sub, d, highlight }) => (
+                      <div key={label} style={{ background: highlight ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (highlight ? '#16a34a' : T.cardBorder), borderRadius: 16, padding: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: highlight ? '#22c55e' : T.textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>{label}</div>
+                        <div style={{ fontSize: 11, color: T.textSub, marginBottom: 12 }}>{sub}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {[
+                            { l: 'Capital invertido', v: eur(d.capital) },
+                            { l: 'Valor final cartera', v: eur(d.value) },
+                            { l: 'Rentabilidad', v: (d.ret >= 0 ? '+' : '') + d.ret + '%', bold: true, color: d.ret >= 0 ? '#22c55e' : '#ef4444' },
+                            ...(highlight ? [{ l: 'Reserva final', v: eur(prot.reserva) }] : []),
+                          ].map(({ l, v, bold, color }) => (
+                            <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                              <span style={{ color: T.textSub }}>{l}</span>
+                              <span style={{ fontWeight: bold ? 700 : 500, color: color || T.text }}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Alpha */}
+                  <Card {...cardProps}>
+                    <SectionTitle text="Alpha estimado" color={T.textSub} />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: T.textSub, marginBottom: 4 }}>vs Benchmark (lump+DCA)</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: alphaColor, letterSpacing: '-0.5px' }}>{alpha >= 0 ? '+' : ''}{alpha}%</div>
+                        <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>Mismo capital total, diferente timing</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: T.textSub, marginBottom: 4 }}>vs DCA puro</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: alphaDCA >= 0 ? '#22c55e' : '#ef4444', letterSpacing: '-0.5px' }}>{alphaDCA >= 0 ? '+' : ''}{alphaDCA}%</div>
+                        <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>Protocolo vs sin protocolo</div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Distribución de niveles */}
+                  <Card {...cardProps}>
+                    <SectionTitle text="Distribución de niveles" color={T.textSub} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {['3+','3','2','0-1','-1'].map(lv => {
+                        const count = levelDist[lv] || 0
+                        const pct   = months > 0 ? count / months * 100 : 0
+                        return (
+                          <div key={lv} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, fontSize: 12, fontWeight: 700, color: LMc[lv], textAlign: 'right', flexShrink: 0 }}>{lv}</div>
+                            <div style={{ flex: 1, background: dark ? '#3a3a3c' : '#f2f2f7', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                              <div style={{ width: pct + '%', background: LMc[lv], height: '100%', borderRadius: 6, transition: 'width 0.5s' }} />
+                            </div>
+                            <div style={{ width: 80, fontSize: 12, color: T.textSub }}>{count} meses ({pct.toFixed(0)}%)</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </Card>
+
+                  {/* Eventos nivel 2+ */}
+                  {events.filter(e => ['3+','3','2'].includes(e.level)).length > 0 && (
+                    <Card {...cardProps}>
+                      <SectionTitle text={`Activaciones nivel 2+ (${events.filter(e => ['3+','3','2'].includes(e.level)).length} meses)`} color={T.textSub} />
+                      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '90px 50px 70px 60px 50px 70px 70px', gap: 0, padding: '8px 14px', background: dark ? '#3a3a3c' : '#f2f2f7', fontSize: 10, fontWeight: 700, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {['Fecha','Nivel','Inversión','Exceso','VIX','DD%','Reserva'].map(h => <div key={h}>{h}</div>)}
+                        </div>
+                        {events.filter(e => ['3+','3','2'].includes(e.level)).map((e, i, arr) => (
+                          <div key={e.date} style={{ display: 'grid', gridTemplateColumns: '90px 50px 70px 60px 50px 70px 70px', padding: '10px 14px', background: T.cardBg, borderTop: '1px solid ' + T.cardBorder, fontSize: 13 }}>
+                            <div style={{ color: T.textSub }}>{e.date}</div>
+                            <div style={{ fontWeight: 700, color: LMc[e.level] }}>{e.level}</div>
+                            <div style={{ color: T.text }}>{eur(e.inv)}</div>
+                            <div style={{ color: e.excess > 0 ? '#f97316' : T.textSub }}>{eur(e.excess)}</div>
+                            <div style={{ color: e.vix > 30 ? '#ef4444' : T.text }}>{e.vix}</div>
+                            <div style={{ color: e.dd < -20 ? '#ef4444' : e.dd < -10 ? '#f97316' : T.text }}>{e.dd}%</div>
+                            <div style={{ color: T.textSub }}>{eur(e.reserva)}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {events.some(e => e.ration > 0) && (
+                        <div style={{ fontSize: 11, color: '#f97316', marginTop: 8 }}>
+                          ⚠ {events.filter(e => e.ration > 0).length} eventos con racionamiento (reserva insuficiente para el exceso completo)
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  <button onClick={() => { setBtState('idle'); setBtResult(null) }}
+                    style={{ background: 'transparent', border: '1px solid ' + T.cardBorder, color: T.textSub, padding: '8px 18px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, alignSelf: 'flex-start' }}>
+                    Nueva simulación
+                  </button>
+                </>
+              )
+            })()}
           </div>
         )}
 
