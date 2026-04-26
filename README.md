@@ -45,6 +45,32 @@ Si la reserva es baja, el sistema la protege automáticamente:
 
 Configura tu DCA base mensual, el perfil de multiplicadores (conservador / moderado / agresivo) y los umbrales de las señales.
 
+## Exportar a Google Sheets
+
+El botón **⊞ Sheets** copia una fila con tabulaciones lista para pegar directamente en Sheets.
+
+Cabeceras para la primera fila (pegar una sola vez):
+
+| Col | Cabecera | Descripción |
+|---|---|---|
+| A | Fecha | Fecha de la auditoría |
+| B | Nivel | Nivel activo (ej. 2 — REFUERZO) |
+| C | Activo | Activo de referencia |
+| D | NAV | Precio de una participación |
+| E | Inversión | Total a invertir este mes |
+| F | Nómina | Parte de flujo de caja |
+| G | Reserva usada | Parte extraída de la reserva |
+| H | Reserva post | Saldo de reserva tras la operación |
+| I | Part.nuevas | Participaciones compradas este mes |
+| J | Part.total | Total de participaciones acumuladas |
+| K | Break-Even | Precio medio ponderado de compra |
+| L | Drawdown | Caída desde máximos de URTH |
+| M | VIX | Valor del VIX en la fecha |
+| N | VSTOXX | Valor del VSTOXX (vacío si no introducido) |
+| O | %Recuperación | % necesario para recuperar break-even ("En positivo" si NAV > break-even) |
+| P | Multiplicador | Multiplicador aplicado (×1, ×2, etc.) |
+| Q | Racionamiento | "No" o "Nivel 2/3" si se activó |
+
 ## Fuentes de datos
 
 | Dato | Fuente | Método |

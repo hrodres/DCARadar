@@ -216,16 +216,12 @@ function copySheets(result, mktRaw, portRaw, cfg) {
     pct(drawdown),
     fN(vix),
     hasVstoxx ? fN(vstoxx) : '',
-    hasCartera && pctRec != null ? pct(pctRec) : '',
+    hasCartera ? (pctRec != null ? pct(pctRec) : 'En positivo') : '—',
     '×' + mult,
-    rationTier > 0 ? 'Nivel ' + rationTier : '',
+    rationTier > 0 ? 'Nivel ' + rationTier : 'No',
   ]
 
-  const header = 'Fecha\tNivel\tActivo\tNAV\tInversión\tNómina\tReserva usada\tReserva post\tPart.nuevas\tPart.total\tBreak-Even\tDrawdown\tVIX\tVSTOXX\t%Recuperación\tMultiplicador\tRacionamiento'
-
-  navigator.clipboard.writeText(cols.join('\t'))
-    .then(() => alert('✓ Fila copiada al portapapeles.\n\nPégala en Google Sheets con Ctrl+V.\n\nCabeceras para la primera fila:\n' + header))
-    .catch(() => alert('No se pudo copiar. Comprueba los permisos del navegador.'))
+  return navigator.clipboard.writeText(cols.join('\t'))
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
@@ -257,7 +253,8 @@ export default function App() {
   const [capital, setCapital] = useState('')
   const [parts,   setParts_]  = useState('')
 
-  const [copied, setCopied] = useState(false)
+  const [copied,    setCopied]    = useState(false)
+  const [copyErr,   setCopyErr]   = useState(false)
 
   const updCfg = (k, v) => setCfg(c => {
     const next = { ...c, [k]: typeof v === 'string' ? v : pf(v) }
@@ -372,7 +369,7 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {result && (
               <div className="hdr-actions" style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => { setCopyErr(true); setTimeout(() => setCopyErr(false), 3000) }) }}
                   style={{ background: copied ? (dark ? '#0f1f13' : '#f0fdf4') : T.cardBg, border: '1px solid ' + (copied ? '#16a34a' : T.cardBorder), color: copied ? '#22c55e' : T.text, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copied ? '✓' : '⊞'} Sheets
                 </button>
@@ -589,7 +586,7 @@ export default function App() {
               <div style={{ fontSize: 16, fontWeight: 700, color: meta.color }}>{result.level} · {eur(result.invFinal)}</div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+              <button onClick={() => { copySheets(result, mktRaw, portRaw, cfg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => { setCopyErr(true); setTimeout(() => setCopyErr(false), 3000) }) }}
                 style={{ background: copied ? '#16a34a' : T.cardBg, border: '1px solid ' + T.cardBorder, color: copied ? 'white' : T.text, borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {copied ? '✓' : '⊞'}
               </button>
@@ -601,6 +598,13 @@ export default function App() {
           </div>
         )
       })()}
+
+      {/* TOAST ERROR COPY */}
+      {copyErr && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#ef4444', color: 'white', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, zIndex: 999, boxShadow: '0 4px 16px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>
+          No se pudo copiar — comprueba permisos del navegador
+        </div>
+      )}
     </div>
   )
 }
