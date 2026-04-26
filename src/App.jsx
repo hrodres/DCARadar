@@ -489,7 +489,7 @@ export default function App() {
               {sectionTitle('General')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>Nombre del activo (para PDF)</label>
+                  <div style={{ fontSize: 12, color: T.textSub, marginBottom: 8, lineHeight: 1.5 }}>Nombre del activo (para PDF)</div>
                   <input value={cfg.activo} onChange={e => updCfg('activo', e.target.value)} placeholder="Ej: Vanguard Global Stock EUR Acc / IWDA / VWCE"
                     style={{ width: '100%', background: dark ? '#3a3a3c' : 'white', border: '1px solid ' + T.cardBorder, borderRadius: 10, padding: '10px 14px', fontSize: 14, color: T.text, fontFamily: 'inherit', outline: 'none' }} />
                 </div>
