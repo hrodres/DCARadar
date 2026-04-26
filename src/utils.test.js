@@ -176,12 +176,19 @@ describe('calc — racionamiento', () => {
     expect(r.invFinal).toBe(500) // dcaBase, nunca dcaBase * 0.5
   })
 
-  it('rationAlert true cuando reserva < rationWarn% del objetivo', () => {
-    // reserva=1900 < objReserva*50%(2000) → rationAlert=true, sin racionamiento aún
+  it('rationAlert true solo cuando hay exceso y reserva < rationWarn%', () => {
+    // nivel 2 (excesoBase > 0) + reserva baja → rationAlert=true
     const port = { reserva: 1900, hasReserva: true, navEur: 0, capital: 0, parts: 0 }
-    const r = calc(mkt(100, 80, -3, 20), port, CFG)
+    const r = calc(mkt(50, 80, -5, 35), port, CFG) // nivel 2: vix pánico + bajista
     expect(r.rationAlert).toBe(true)
-    expect(r.rationTier).toBe(0) // mercado normal, sin exceso
+    expect(r.rationTier).toBe(0) // postOp=1900-500=1400 > objReserva*25%(1000), sin tier
+  })
+
+  it('rationAlert false en nivel 0-1 aunque reserva sea baja (no hay exceso)', () => {
+    const port = { reserva: 1900, hasReserva: true, navEur: 0, capital: 0, parts: 0 }
+    const r = calc(mkt(100, 80, -3, 20), port, CFG) // mercado normal, nivel 0-1
+    expect(r.rationAlert).toBe(false)
+    expect(r.rationTier).toBe(0)
   })
 
   it('sin alerta cuando reserva >= rationWarn% del objetivo', () => {
