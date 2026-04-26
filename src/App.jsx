@@ -196,7 +196,7 @@ ${hasCartera ? `
 // ── Copy to Sheets ────────────────────────────────────────────────────────────
 function copySheets(result, mktRaw, portRaw, cfg) {
   const { level, invFinal, excesoFinal, reservaPost, hasCartera,
-    newParts, totalParts, breakEven, pctRec, dcaPure } = result
+    newParts, totalParts, breakEven, pctRec, mult, rationTier } = result
   const { drawdown, vix, vstoxx, hasVstoxx } = mktRaw
   const { navEur } = portRaw
   const meta = LM[level] || LM['0-1']
@@ -217,9 +217,11 @@ function copySheets(result, mktRaw, portRaw, cfg) {
     fN(vix),
     hasVstoxx ? fN(vstoxx) : '',
     hasCartera && pctRec != null ? pct(pctRec) : '',
+    '×' + mult,
+    rationTier > 0 ? 'Nivel ' + rationTier : '',
   ]
 
-  const header = 'Fecha\tNivel\tActivo\tNAV\tInversión\tNómina\tReserva usada\tReserva post\tPart.nuevas\tPart.total\tBreak-Even\tDrawdown\tVIX\tVSTOXX\t%Recuperación'
+  const header = 'Fecha\tNivel\tActivo\tNAV\tInversión\tNómina\tReserva usada\tReserva post\tPart.nuevas\tPart.total\tBreak-Even\tDrawdown\tVIX\tVSTOXX\t%Recuperación\tMultiplicador\tRacionamiento'
 
   navigator.clipboard.writeText(cols.join('\t'))
     .then(() => alert('✓ Fila copiada al portapapeles.\n\nPégala en Google Sheets con Ctrl+V.\n\nCabeceras para la primera fila:\n' + header))
