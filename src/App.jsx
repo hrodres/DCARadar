@@ -8,12 +8,22 @@ import VerdictPanel from './components/VerdictPanel.jsx'
 function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
   const { level, invFinal, excesoFinal, rationTier, reservaPost, objReserva,
     hasCartera, breakEven, pctRec, totalParts, newParts, isFirst,
-    coverMonths, dcaPure, mult, protocoloActivo, conds, levels } = result
+    coverMonths, mult, protocoloActivo, conds, levels } = result
   const { urthPrice, sma200, drawdown, vix, vstoxx, hasVstoxx } = mktRaw
   const { reserva, hasReserva, navEur, capital, parts } = portRaw
   const meta = LM[level] || LM['0-1']
   const date = todayStr()
-  const activo = escHtml(cfg.activo || 'Activo de referencia: URTH (MSCI World)')
+  const activo = escHtml(cfg.activo || 'URTH — MSCI World')
+
+  const kv = (k, v, bold) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v"${bold ? ' style="font-size:12px"' : ''}>${v}</span></div>`
+
+  const sigRows = [
+    { l: 'VIX',      val: fN(vix),           ctx: `pánico >${cfg.vixPanic} · euforia <${cfg.vixEuph}`, ok: !conds.cVixP, neu: false, st: conds.cVixP ? 'Pánico' : 'Normal' },
+    { l: 'VSTOXX',   val: hasVstoxx ? fN(vstoxx) : '—', ctx: hasVstoxx ? `pánico >${cfg.vstPanic} · euforia <${cfg.vstEuph}` : 'No introducido', ok: !conds.cVstP, neu: !hasVstoxx, st: conds.cVstP ? 'Pánico' : hasVstoxx ? 'Normal' : 'N/A' },
+    { l: 'Drawdown', val: pct(drawdown),      ctx: `moderado <${cfg.ddMod}% · severo <${cfg.ddSev}%`, ok: !conds.cDDm, neu: false, st: conds.cDDs ? 'Severo' : conds.cDDm ? 'Moderado' : 'Normal' },
+    { l: 'Tendencia',val: `${usd(urthPrice)} vs SMA200 ${usd(sma200)}`, ctx: '', ok: !conds.cBear, neu: false, st: conds.cBear ? 'Bajista ▼' : 'Alcista ▲' },
+    { l: 'Reserva',  val: hasReserva ? `${eur(reserva)} · obj ${eur(objReserva)}` : '—', ctx: `${cfg.multReserva}× DCA base`, ok: result.reservaCompleta, neu: !hasReserva, st: result.reservaCompleta ? 'Completa' : hasReserva ? 'Incompleta' : 'N/A' },
+  ]
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -21,197 +31,151 @@ function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
 <meta charset="UTF-8">
 <title>DCA Radar — ${date}</title>
 <style>
-  @page { margin: 2cm 2.5cm; size: A4; }
+  @page { margin: 1.5cm 2cm; size: A4; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1d1d1f; font-size: 11px; line-height: 1.5; background: white; }
-  
-  .header { border-bottom: 2px solid #1d1d1f; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
-  .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-  .header-sub { font-size: 11px; color: #6e6e73; margin-top: 2px; }
-  .header-date { text-align: right; font-size: 11px; color: #6e6e73; }
-  
-  .verdict { background: ${meta.bg}; border: 1.5px solid ${meta.border}; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
-  .verdict-level { font-size: 26px; font-weight: 700; color: ${meta.color}; letter-spacing: -0.5px; margin-bottom: 12px; }
-  .verdict-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .vblock-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #6e6e73; margin-bottom: 3px; }
-  .vblock-value { font-size: 18px; font-weight: 700; white-space: nowrap; }
-  
-  .alert { border-radius: 6px; padding: 8px 12px; font-size: 11px; margin-bottom: 10px; font-weight: 500; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1d1d1f; font-size: 10px; line-height: 1.45; background: white; }
+
+  .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1d1d1f; padding-bottom: 9px; margin-bottom: 12px; }
+  .hdr-title { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .hdr-sub { font-size: 9.5px; color: #6e6e73; margin-top: 2px; }
+  .hdr-right { text-align: right; font-size: 9.5px; color: #6e6e73; }
+  .level-badge { display: inline-block; margin-top: 4px; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; background: ${meta.bg}; border: 1px solid ${meta.border}; color: ${meta.color}; }
+
+  .verdict { background: ${meta.bg}; border: 1.5px solid ${meta.border}; border-radius: 7px; padding: 11px 16px; margin-bottom: 10px; }
+  .verdict-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .vl { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #6e6e73; margin-bottom: 2px; }
+  .vv { font-size: 15px; font-weight: 700; white-space: nowrap; }
+
+  .alert { border-radius: 5px; padding: 5px 10px; font-size: 9.5px; font-weight: 500; margin-bottom: 7px; }
   .alert-crit { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
   .alert-warn { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; }
   .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
-  .alert-ok   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
-  
-  .section { margin-bottom: 18px; }
-  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #6e6e73; border-bottom: 1px solid #e5e5ea; padding-bottom: 4px; margin-bottom: 8px; }
-  
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-  
-  .kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f5f5f7; }
-  .kv-k { color: #6e6e73; }
+
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+  .cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .sec { margin-bottom: 12px; }
+  .sec-title { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #6e6e73; border-bottom: 1px solid #e5e5ea; padding-bottom: 3px; margin-bottom: 6px; }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; border-bottom: 1px solid #f5f5f7; gap: 6px; }
+  .kv-k { color: #6e6e73; flex-shrink: 0; }
   .kv-v { font-weight: 600; white-space: nowrap; }
-  
-  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: 10px; font-weight: 600; margin-right: 4px; margin-bottom: 4px; }
-  .badge-ok   { background: #d1fae5; color: #065f46; }
-  .badge-warn { background: #fee2e2; color: #991b1b; }
-  .badge-neu  { background: #f3f4f6; color: #6b7280; }
-  
-  table { width: 100%; border-collapse: collapse; font-size: 10px; }
-  th { text-align: left; padding: 5px 8px; background: #f5f5f7; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6e6e73; }
-  td { padding: 5px 8px; border-bottom: 1px solid #f5f5f7; }
-  tr.active td { background: ${meta.bg}; font-weight: 600; color: ${meta.color}; }
-  tr:nth-child(even):not(.active) td { background: #fafafa; }
-  
-  .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e5e5ea; font-size: 9px; color: #aeaeb2; line-height: 1.6; }
-  .footer strong { color: #6e6e73; }
-  
-  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+
+  .sig { display: grid; grid-template-columns: 60px 1fr auto; gap: 6px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid #f5f5f7; }
+  .sig-l { font-weight: 600; }
+  .sig-ctx { color: #aeaeb2; font-size: 8.5px; }
+  .sig-st { font-weight: 600; font-size: 9px; white-space: nowrap; }
+  .ok  { color: #15803d; }
+  .bad { color: #dc2626; }
+  .neu { color: #6e6e73; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  th { text-align: left; padding: 4px 6px; background: #f5f5f7; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6e6e73; }
+  td { padding: 4px 6px; border-bottom: 1px solid #f5f5f7; }
+  tr.act td { background: ${meta.bg}; font-weight: 700; color: ${meta.color}; }
+
+  .footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid #e5e5ea; font-size: 8.5px; color: #aeaeb2; }
 </style>
 </head>
 <body>
 
-<div class="header">
+<div class="hdr">
   <div>
-    <div class="header-title">DCA Radar</div>
-    <div class="header-sub">Auditoría táctica mensual${activo ? ' · ' + activo : ''}</div>
+    <div class="hdr-title">DCA Radar</div>
+    <div class="hdr-sub">Auditoría táctica mensual · ${activo}</div>
   </div>
-  <div class="header-date">
-    <div style="font-size:13px;font-weight:700">${date}</div>
-    ${fetchDate ? '<div>Datos de mercado: ' + fetchDate + '</div>' : ''}
-    <div style="margin-top:3px;display:inline-block;background:${meta.bg};border:1px solid ${meta.border};border-radius:4px;padding:2px 8px;font-weight:600;color:${meta.color}">${level} — ${meta.label}</div>
+  <div class="hdr-right">
+    <div>${date}${fetchDate ? ' · Mercado: ' + fetchDate : ''}</div>
+    <div class="level-badge">${level} — ${meta.label}</div>
   </div>
 </div>
 
 <div class="verdict">
-  <div class="verdict-level">${level} — ${meta.label}</div>
   <div class="verdict-grid">
-    <div>
-      <div class="vblock-label">Invertir este mes</div>
-      <div class="vblock-value" style="color:#1d1d1f">${eur(invFinal)}</div>
-    </div>
-    <div>
-      <div class="vblock-label">De nómina / flujo</div>
-      <div class="vblock-value" style="color:#16a34a">${eur(cfg.dcaBase)}</div>
-    </div>
-    <div>
-      <div class="vblock-label">De reserva táctica</div>
-      <div class="vblock-value" style="color:${excesoFinal > 0 ? '#ea580c' : '#6e6e73'}">${eur(excesoFinal)}</div>
-    </div>
-    ${reservaPost != null ? `<div>
-      <div class="vblock-label">Reserva tras operación</div>
-      <div class="vblock-value" style="color:${reservaPost < objReserva * 0.25 ? '#dc2626' : reservaPost < objReserva * 0.5 ? '#ca8a04' : '#16a34a'}">${eur(reservaPost)}</div>
-    </div>` : ''}
+    <div><div class="vl">Invertir este mes</div><div class="vv" style="color:#1d1d1f">${eur(invFinal)}</div></div>
+    <div><div class="vl">De flujo de caja</div><div class="vv" style="color:#16a34a">${eur(cfg.dcaBase)}</div></div>
+    <div><div class="vl">De reserva táctica</div><div class="vv" style="color:${excesoFinal > 0 ? '#ea580c' : '#6e6e73'}">${eur(excesoFinal)}</div></div>
+    ${reservaPost != null ? `<div><div class="vl">Reserva tras operación</div><div class="vv" style="color:${reservaPost < objReserva * 0.25 ? '#dc2626' : reservaPost < objReserva * 0.5 ? '#ca8a04' : '#16a34a'}">${eur(reservaPost)}</div></div>` : ''}
   </div>
 </div>
 
-${rationTier === 3 ? '<div class="alert alert-crit">🔴 Racionamiento crítico — reserva insuficiente para el exceso. Invierte solo el DCA base.</div>' : ''}
-${rationTier === 2 ? '<div class="alert alert-warn">⚠ Racionamiento activo — reserva por debajo del ' + cfg.rationBrake + '% del objetivo. Exceso reducido a la mitad.</div>' : ''}
-${result.rationAlert && rationTier === 0 ? '<div class="alert alert-info">Reserva por debajo del ' + cfg.rationWarn + '% del objetivo. Sin racionamiento aún — vigilar evolución.</div>' : ''}
-${!protocoloActivo ? '<div class="alert alert-info">Protocolo táctico inactivo — reserva ' + (hasReserva ? 'incompleta (' + eur(portRaw.reserva) + ' de ' + eur(objReserva) + ')' : 'no aportada') + '. Aplicando DCA base.</div>' : ''}
-${level === '-1' && !result.cResInc ? '<div class="alert alert-info">Mercado en euforia — inversión reducida. Momento de acumular reserva táctica.</div>' : ''}
+${rationTier === 3 ? '<div class="alert alert-crit">🔴 Racionamiento crítico — reserva insuficiente para el exceso. Inviertes solo el DCA base.</div>' : ''}
+${rationTier === 2 ? '<div class="alert alert-warn">⚠ Racionamiento activo — reserva baja. Exceso reducido a la mitad, DCA base garantizado.</div>' : ''}
+${result.rationAlert && rationTier === 0 ? '<div class="alert alert-info">Reserva por debajo del ' + cfg.rationWarn + '% del objetivo. Sin racionamiento aún.</div>' : ''}
+${!protocoloActivo ? '<div class="alert alert-info">Reserva no aportada — protocolo inactivo. Aplicando DCA base.</div>' : ''}
+${level === '-1' && !result.cResInc ? '<div class="alert alert-info">Mercado en euforia — reserva completa. Continúa con el DCA base.</div>' : ''}
+${level === '-1' && result.cResInc ? '<div class="alert alert-info">Nivel -1 + Reserva incompleta: ' + eur(invFinal) + ' a inversión + ' + eur(result.invRes) + ' a reserva.</div>' : ''}
 
-<div class="section">
-  <div class="section-title">Estado del mercado</div>
-  <div style="margin-bottom:6px">
-    ${[
-      { l: 'VIX ' + fN(vix), ok: !conds.cVixP },
-      { l: 'VSTOXX ' + (hasVstoxx ? fN(vstoxx) : 'n/a'), ok: !conds.cVstP, neu: !hasVstoxx },
-      { l: conds.cDDs ? 'DD Severo' : conds.cDDm ? 'DD Moderado' : 'DD Normal ' + pct(drawdown), ok: !conds.cDDm },
-      { l: conds.cBear ? 'Bajista' : 'Alcista', ok: !conds.cBear },
-      { l: 'Reserva ' + (hasReserva ? (result.reservaCompleta ? 'completa' : 'incompleta') : 'n/a'), ok: result.reservaCompleta, neu: !hasReserva },
-    ].map(({ l, ok, neu }) => `<span class="badge ${neu ? 'badge-neu' : ok ? 'badge-ok' : 'badge-warn'}">${neu ? '○' : ok ? '✓' : '✗'} ${l}</span>`).join('')}
+<div class="cols2">
+  <div class="sec">
+    <div class="sec-title">Señales de mercado</div>
+    ${sigRows.map(({ l, val, ctx, ok, neu, st }) => `
+      <div class="sig">
+        <span class="sig-l">${l}</span>
+        <span class="sig-ctx">${val}${ctx ? ' · ' + ctx : ''}</span>
+        <span class="sig-st ${neu ? 'neu' : ok ? 'ok' : 'bad'}">${neu ? '○' : ok ? '✓' : '✗'} ${st}</span>
+      </div>`).join('')}
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">Operación del mes</div>
+    ${kv('DCA base mensual', eur(cfg.dcaBase))}
+    ${kv('Multiplicador nivel ' + level, '× ' + mult)}
+    ${rationTier > 0 ? kv('Racionamiento', 'Nivel ' + rationTier) : ''}
+    ${kv('Inversión final', eur(invFinal), true)}
+    ${kv('De flujo de caja', eur(cfg.dcaBase))}
+    ${kv('De reserva táctica', eur(excesoFinal))}
+    ${coverMonths != null ? kv('Cobertura reserva (Niv.3)', fN(coverMonths, 1) + ' meses') : ''}
   </div>
 </div>
 
-<div class="grid2">
-  <div class="section">
-    <div class="section-title">Datos de mercado</div>
-    ${[
-      ['URTH Precio', usd(urthPrice)],
-      ['SMA 200 (200 sesiones)', usd(sma200)],
-      ['Tendencia', urthPrice > sma200 ? 'Alcista ▲' : 'Bajista ▼'],
-      ['Drawdown vs máximo', pct(drawdown)],
-      ['VIX', fN(vix) + (vix > cfg.vixPanic ? ' — PÁNICO' : vix < cfg.vixEuph ? ' — euforia' : ' — normal')],
-      ['VSTOXX', hasVstoxx ? fN(vstoxx) + (vstoxx > cfg.vstPanic ? ' — PÁNICO' : vstoxx < cfg.vstEuph ? ' — euforia' : ' — normal') : 'No aportado'],
-    ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
-  </div>
-
-  <div class="section">
-    <div class="section-title">Operación del mes</div>
-    ${[
-      ['DCA base', eur(cfg.dcaBase)],
-      ['Multiplicador activo', '× ' + mult],
-      ['Inversión calculada', eur(result.invCalc)],
-      ['Racionamiento', rationTier > 0 ? 'Sí — nivel ' + rationTier : 'No aplica'],
-      ['Inversión final', eur(invFinal)],
-      ['De flujo de caja', eur(cfg.dcaBase)],
-      ['De reserva táctica', eur(excesoFinal)],
-      ...(coverMonths != null ? [['Cobertura reserva (Niv. 3)', fN(coverMonths, 1) + ' meses']] : []),
-    ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
-  </div>
-</div>
-
-${hasCartera ? `
-<div class="section">
-  <div class="section-title">Cartera tras la operación</div>
-  <div class="grid3">
-    <div>
-      ${[
-        ['NAV del fondo', eur(navEur)],
-        ['Capital previo', eur(capital)],
-        ['Participaciones previas', f4(parts)],
-      ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
-    </div>
-    <div>
-      ${[
-        ['Nuevas participaciones', f4(newParts)],
-        ['Total participaciones', f4(totalParts)],
-        ['Capital total', eur(capital + invFinal)],
-      ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
-    </div>
-    <div>
-      ${[
-        ['Break-Even', isFirst ? eur(breakEven) + ' (= NAV)' : eur(breakEven)],
-        ['NAV actual', eur(navEur)],
-        ['% Recuperación necesaria', pctRec != null ? pct(pctRec) : isFirst ? 'N/A — 1ª aportación' : '✓ NAV > Break-Even'],
-      ].map(([k, v]) => `<div class="kv"><span class="kv-k">${k}</span><span class="kv-v">${v}</span></div>`).join('')}
-    </div>
-  </div>
-</div>` : ''}
-
-<div class="section">
-  <div class="section-title">Matriz de niveles</div>
+<div class="sec">
+  <div class="sec-title">Matriz de niveles</div>
   <table>
-    <thead>
-      <tr><th>Nivel</th><th>Condición de activación</th><th>Multiplicador</th><th>Inversión</th><th>Estado</th></tr>
-    </thead>
+    <thead><tr><th>Nivel</th><th>Condición</th><th>Mult</th><th>Inversión</th><th>Umbrales activos</th></tr></thead>
     <tbody>
       ${[
-        { lbl: '3+ Crash',   active: levels.n3p, lvl: '3+',  mult: cfg.multN3p, cond: 'Pánico VIX/VSTOXX + DD severo + Tendencia bajista' },
-        { lbl: '3 Pleno',    active: levels.n3,  lvl: '3',   mult: cfg.multN3,  cond: 'Pánico VIX/VSTOXX + DD moderado + Tendencia bajista' },
-        { lbl: '2 Refuerzo', active: levels.n2,  lvl: '2',   mult: cfg.multN2,  cond: 'Señal de pánico/DD + Tendencia bajista' },
-        { lbl: '0-1 Base',   active: levels.n01, lvl: '0-1', mult: cfg.multN01, cond: 'Sin señales de alerta — mercado normal' },
-        { lbl: '-1 Euforia', active: levels.nm1, lvl: '-1',  mult: cfg.multN1i, cond: 'VIX/VSTOXX en euforia + DD cerca de máximos' },
+        { lbl: '3+ Crash',   active: levels.n3p, lvl: '3+',  m: cfg.multN3p, cond: 'VIX/VSTOXX pánico + DD severo + bajista',   thr: `VIX>${cfg.vixPanic} · DD<${cfg.ddSev}%` },
+        { lbl: '3 Pleno',    active: levels.n3,  lvl: '3',   m: cfg.multN3,  cond: 'VIX/VSTOXX pánico + DD moderado + bajista', thr: `VIX>${cfg.vixPanic} · DD<${cfg.ddMod}%` },
+        { lbl: '2 Refuerzo', active: levels.n2,  lvl: '2',   m: cfg.multN2,  cond: 'Señal pánico o DD moderado + bajista',      thr: `VIX>${cfg.vixPanic} o DD<${cfg.ddMod}%` },
+        { lbl: '0-1 Base',   active: levels.n01, lvl: '0-1', m: cfg.multN01, cond: 'Sin señales de alerta',                     thr: '—' },
+        { lbl: '-1 Euforia', active: levels.nm1, lvl: '-1',  m: cfg.multN1i, cond: 'VIX/VSTOXX euforia + DD cerca de máximos', thr: `VIX<${cfg.vixEuph} · DD>${cfg.ddEuph}%` },
       ].map(row => {
         const rm = LM[row.lvl] || LM['0-1']
-        return `<tr class="${row.active ? 'active' : ''}">
-          <td style="font-weight:${row.active ? 700 : 400};color:${row.active ? rm.color : 'inherit'}">${row.active ? '▶ ' : ''}${row.lbl}</td>
+        return `<tr class="${row.active ? 'act' : ''}">
+          <td>${row.active ? '▶ ' : ''}${row.lbl}</td>
           <td style="color:#6e6e73">${row.cond}</td>
-          <td>× ${row.mult}</td>
-          <td>${eur(cfg.dcaBase * row.mult)}</td>
-          <td>${row.active ? '<strong style="color:' + rm.color + '">ACTIVO</strong>' : '—'}</td>
+          <td>× ${row.m}</td>
+          <td>${eur(cfg.dcaBase * row.m)}</td>
+          <td style="color:#aeaeb2;font-size:8.5px">${row.thr}</td>
         </tr>`
       }).join('')}
     </tbody>
   </table>
 </div>
 
-<div class="footer">
-  <strong>DCA Radar</strong>${activo ? ' · ' + activo : ''}<br>
-  Herramienta de cálculo personal. No constituye asesoramiento financiero ni recomendación de inversión.<br>
-  La inversión en fondos implica riesgo de pérdida de capital. Verifique siempre con su bróker antes de operar.
-</div>
+${hasCartera ? `
+<div class="sec">
+  <div class="sec-title">Cartera tras la operación</div>
+  <div class="cols3">
+    <div>
+      ${kv('NAV del fondo', eur(navEur))}
+      ${kv('Capital previo', eur(capital))}
+      ${kv('Participaciones previas', f4(parts))}
+    </div>
+    <div>
+      ${kv('Nuevas participaciones', f4(newParts))}
+      ${kv('Total participaciones', f4(totalParts))}
+      ${kv('Capital total', eur(capital + invFinal))}
+    </div>
+    <div>
+      ${kv('Break-Even', isFirst ? eur(breakEven) + ' (= NAV)' : eur(breakEven))}
+      ${kv('NAV actual', eur(navEur))}
+      ${kv('Recuperación necesaria', pctRec != null ? pct(pctRec) : isFirst ? 'N/A — 1ª aportación' : '✓ En positivo')}
+    </div>
+  </div>
+</div>` : ''}
+
+<div class="footer">DCA Radar · Herramienta de cálculo personal · No constituye asesoramiento financiero · La inversión conlleva riesgo de pérdida de capital</div>
 
 <script>window.onload = () => window.print()</script>
 </body>
