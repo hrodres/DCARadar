@@ -106,14 +106,14 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
         {!protocoloActivo && <div style={alertStyle('info')}>Reserva no aportada — introduce el saldo de tu reserva táctica.</div>}
       </div>
 
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Señales de mercado</div>
-        <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, overflow: 'hidden' }}>
+      <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Señales de mercado</div>
+        <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + cardBorder }}>
           {condItems.map(({ l, ok, detail, neu }, i, arr) => {
             const dot = neu ? '#8e8e93' : ok ? '#22c55e' : '#ef4444'
             const detailColor = neu ? textSub : ok ? '#22c55e' : '#ef4444'
             return (
-              <div key={l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: i < arr.length - 1 ? '1px solid ' + cardBorder : 'none' }}>
+              <div key={l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', background: cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + cardBorder : 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} />
                   <span style={{ fontSize: 15, color: textMain }}>{l}</span>
@@ -126,8 +126,8 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
       </div>
 
       {hasCartera && (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Tu cartera</div>
+        <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Tu cartera</div>
           {/* Métricas destacadas */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             {[
@@ -142,12 +142,12 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
             ))}
           </div>
           {/* Filas iOS */}
-          <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid ' + cardBorder, borderRadius: 12, overflow: 'hidden' }}>
             {[
               { l: 'Participaciones nuevas', v: f4(newParts) },
               { l: 'Total participaciones',  v: f4(totalParts) },
             ].map(({ l, v }, i, arr) => (
-              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', borderBottom: i < arr.length - 1 ? '1px solid ' + cardBorder : 'none' }}>
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', background: cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + cardBorder : 'none' }}>
                 <span style={{ fontSize: 15, color: textMain }}>{l}</span>
                 <span style={{ fontSize: 15, fontWeight: 600, color: textSub }}>{v}</span>
               </div>
