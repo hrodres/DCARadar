@@ -64,6 +64,10 @@ export default async function handler(req, res) {
     rationBrake: parseFloat(req.query.rationBrake || '25'),
   }
 
+  // Filtro de período opcional (YYYY-MM)
+  const fromYM = req.query.from || null   // ej: "2019-01"
+  const toYM   = req.query.to   || null   // ej: "2022-12"
+
   try {
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -131,11 +135,15 @@ export default async function handler(req, res) {
     let firstPrice   = null
 
     for (let i = 0; i < urthMonthly.length; i++) {
-      const m    = urthMonthly[i]
+      const m     = urthMonthly[i]
       const price = m.close
-      allTimeHigh = Math.max(allTimeHigh, price)
+      allTimeHigh = Math.max(allTimeHigh, price)   // ATH siempre sobre histórico completo
 
       if (i < SMA_N - 1) continue    // Necesitamos SMA_N meses de histórico
+
+      // Filtro de período: solo simular dentro del rango solicitado
+      if (fromYM && m.ym < fromYM) continue
+      if (toYM   && m.ym > toYM)   continue
 
       const sma10 = urthMonthly.slice(i - SMA_N + 1, i + 1)
                       .reduce((s, x) => s + x.close, 0) / SMA_N

@@ -260,6 +260,8 @@ export default function App() {
   const [btState,  setBtState]  = useState('idle')   // idle | loading | done | error
   const [btResult, setBtResult] = useState(null)
   const [btErr,    setBtErr]    = useState('')
+  const [btFrom,   setBtFrom]   = useState('')
+  const [btTo,     setBtTo]     = useState('')
 
   const updCfg = (k, v) => setCfg(c => {
     const next = { ...c, [k]: typeof v === 'string' ? v : pf(v) }
@@ -270,9 +272,11 @@ export default function App() {
     return next
   })
 
-  const doBacktest = async () => {
+  const doBacktest = async (fromOverride, toOverride) => {
     setBtState('loading')
     setBtErr('')
+    const from = fromOverride !== undefined ? fromOverride : btFrom
+    const to   = toOverride   !== undefined ? toOverride   : btTo
     try {
       const p = new URLSearchParams({
         dcaBase: cfg.dcaBase, multReserva: cfg.multReserva,
@@ -281,6 +285,8 @@ export default function App() {
         vixPanic: cfg.vixPanic, vixEuph: cfg.vixEuph,
         ddMod: cfg.ddMod, ddSev: cfg.ddSev, ddEuph: cfg.ddEuph,
         rationBrake: cfg.rationBrake,
+        ...(from && { from: from + '-01' }),
+        ...(to   && { to:   to   + '-12' }),
       })
       const resp = await fetch('/api/backtest?' + p)
       const data = await resp.json()
@@ -602,25 +608,91 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 900 }}>
             <Card {...cardProps}>
               <SectionTitle text="Backtesting histórico" color={T.textSub} />
-              <div style={{ fontSize: 12, color: T.textSub, marginBottom: 16, lineHeight: 1.6 }}>
-                Simula el protocolo mes a mes desde el primer dato disponible de URTH usando tu configuración actual.
-                Compara contra DCA puro (500 €/mes) y contra el benchmark más exigente: lump sum de la reserva inicial + DCA puro.
-                Sin VSTOXX (no hay histórico público gratuito).
+
+              {/* Config en uso */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {[
+                  { l: 'DCA base', v: eur(cfg.dcaBase) },
+                  { l: 'Reserva objetivo', v: eur(cfg.dcaBase * cfg.multReserva) },
+                  { l: 'Perfil', v: cfg.profile.charAt(0).toUpperCase() + cfg.profile.slice(1) },
+                  { l: 'Multiplicadores', v: `×${cfg.multN2} / ×${cfg.multN3} / ×${cfg.multN3p}` },
+                  { l: 'VIX pánico', v: '>' + cfg.vixPanic },
+                ].map(({ l, v }) => (
+                  <div key={l} style={{ background: dark ? '#3a3a3c' : '#f2f2f7', borderRadius: 8, padding: '5px 10px', fontSize: 11 }}>
+                    <span style={{ color: T.textSub }}>{l}: </span>
+                    <span style={{ color: T.text, fontWeight: 600 }}>{v}</span>
+                  </div>
+                ))}
               </div>
-              {btState === 'idle' && (
-                <button onClick={doBacktest}
-                  style={{ background: T.text, color: T.pageBg, border: 'none', borderRadius: 10, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+
+              {/* Escenarios predefinidos */}
+              {(() => {
+                const SCENARIOS = [
+                  { label: 'Completo',          from: '',     to: ''     },
+                  { label: 'Bull 2012–2019',    from: '2012', to: '2019' },
+                  { label: 'COVID 2019–2021',   from: '2019', to: '2021' },
+                  { label: 'Bear 2022',         from: '2021', to: '2023' },
+                  { label: '2020–hoy',          from: '2020', to: ''     },
+                ]
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Escenario</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {SCENARIOS.map(s => {
+                        const active = btFrom === s.from && btTo === s.to
+                        return (
+                          <button key={s.label} onClick={() => { setBtFrom(s.from); setBtTo(s.to) }}
+                            style={{ background: active ? T.text : T.cardBg, color: active ? T.pageBg : T.text, border: '1px solid ' + (active ? 'transparent' : T.cardBorder), borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {s.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Rango personalizado */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Período personalizado</div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: T.textSub }}>Desde</span>
+                    <select value={btFrom} onChange={e => setBtFrom(e.target.value)}
+                      style={{ background: T.cardBg, border: '1px solid ' + T.cardBorder, borderRadius: 8, padding: '6px 10px', fontSize: 13, color: T.text, fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value=''>Inicio datos</option>
+                      {Array.from({ length: new Date().getFullYear() - 2012 + 1 }, (_, i) => 2012 + i).map(y => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: T.textSub }}>Hasta</span>
+                    <select value={btTo} onChange={e => setBtTo(e.target.value)}
+                      style={{ background: T.cardBg, border: '1px solid ' + T.cardBorder, borderRadius: 8, padding: '6px 10px', fontSize: 13, color: T.text, fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value=''>Hoy</option>
+                      {Array.from({ length: new Date().getFullYear() - 2013 + 1 }, (_, i) => 2013 + i).map(y => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {btState !== 'loading' && (
+                <button onClick={() => doBacktest()}
+                  style={{ background: T.text, color: T.pageBg, border: 'none', borderRadius: 10, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
                   Ejecutar simulación
                 </button>
               )}
               {btState === 'loading' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.textSub, fontSize: 14 }}>
                   <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 18 }}>⟳</span>
-                  Descargando ~13 años de datos y simulando…
+                  Simulando…
                 </div>
               )}
               {btState === 'error' && (
-                <div style={{ color: '#ef4444', fontSize: 13 }}>
+                <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>
                   Error: {btErr}
                   <button onClick={() => setBtState('idle')} style={{ marginLeft: 12, background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '4px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Reintentar</button>
                 </div>
@@ -747,7 +819,7 @@ export default function App() {
 
                   <button onClick={() => { setBtState('idle'); setBtResult(null) }}
                     style={{ background: 'transparent', border: '1px solid ' + T.cardBorder, color: T.textSub, padding: '8px 18px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, alignSelf: 'flex-start' }}>
-                    Nueva simulación
+                    ← Cambiar parámetros
                   </button>
                 </>
               )
