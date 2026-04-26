@@ -400,10 +400,10 @@ export default function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
               {/* Market card */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mercado</div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Card {...cardProps}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <SectionTitle text="Mercado" color={T.textSub} />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: -12 }}>
                     {fs === 'ok' && fetchDate && <span style={{ fontSize: 11, color: T.textSub }}>a {fetchDate}</span>}
                     <button onClick={doFetch} disabled={fs === 'loading'} style={{
                       background: fs === 'ok' ? (dark ? '#0f1f13' : '#f0fdf4') : T.text,
@@ -416,8 +416,8 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                {fs === 'error' && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 8, padding: '0 4px' }}>Error: {ferr}</div>}
-                <Card {...cardProps} style={{ padding: '0 16px' }}>
+                {fs === 'error' && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>Error: {ferr}</div>}
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
                   {[
                     { label: 'URTH Precio', value: mkt.urthPrice, onChange: v => setMkt(m => ({ ...m, urthPrice: v })), unit: '$', step: 0.5 },
                     { label: 'SMA 200', value: mkt.sma200, onChange: v => setMkt(m => ({ ...m, sma200: v })), unit: '$', step: 0.5 },
@@ -425,37 +425,39 @@ export default function App() {
                     { label: 'VIX', value: mkt.vix, onChange: v => setMkt(m => ({ ...m, vix: v })), step: 0.1, hint: 'cboe.com' },
                     { label: 'VSTOXX', value: mkt.vstoxx, onChange: v => setMkt(m => ({ ...m, vstoxx: v })), step: 0.1, hint: 'optional', optional: true },
                   ].map((f, i, arr) => (
-                    <div key={f.label} style={{ borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                    <div key={f.label} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
                       <NumInput dark={dark} {...f} />
                     </div>
                   ))}
                   {mkt.urthPrice && mkt.sma200 && (
-                    <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid ' + T.cardBorder }}>
+                    <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid ' + T.cardBorder, background: T.cardBg }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444', flexShrink: 0 }} />
                       <span style={{ fontSize: 13, color: pf(mkt.urthPrice) > pf(mkt.sma200) ? '#22c55e' : '#ef4444', fontWeight: 500 }}>
                         {pf(mkt.urthPrice) > pf(mkt.sma200) ? 'Tendencia alcista' : 'Tendencia bajista'}
                       </span>
                     </div>
                   )}
-                </Card>
-              </div>
+                </div>
+              </Card>
 
               {/* Portfolio card */}
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px', marginBottom: 6 }}>Cartera</div>
-                <Card {...cardProps} style={{ padding: '0 16px' }}>
+              <Card {...cardProps}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <SectionTitle text="Cartera" color={T.textSub} />
+                </div>
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
                   {[
                     { label: 'Reserva táctica', value: reserva, onChange: setReserva, unit: '€', step: 100, hint: 'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva) + ' · Mantener en fondo monetario' },
                     { label: 'NAV del fondo', value: navEur, onChange: setNavEur, unit: '€', step: 0.1, hint: 'Precio de una participación', optional: true },
                     { label: 'Capital invertido', value: capital, onChange: setCapital, unit: '€', step: 100, optional: true },
                     { label: 'Participaciones', value: parts, onChange: setParts_, step: 0.1, optional: true },
                   ].map((f, i, arr) => (
-                    <div key={f.label} style={{ borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
+                    <div key={f.label} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
                       <NumInput dark={dark} {...f} />
                     </div>
                   ))}
-                </Card>
-              </div>
+                </div>
+              </Card>
 
               {/* Sources */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 4px' }}>
