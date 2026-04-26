@@ -443,7 +443,7 @@ export default function App() {
                       borderRadius: 10, padding: '6px 14px', fontSize: 13, fontWeight: 600,
                       cursor: fs === 'loading' ? 'wait' : 'pointer', fontFamily: 'inherit',
                     }}>
-                      {fs === 'loading' ? '⟳' : fs === 'ok' ? '✓ Refrescar' : '⟳ Fetch'}
+                      {fs === 'loading' ? '⟳' : '⟳ Actualizar'}
                     </button>
                   </div>
                 </div>
