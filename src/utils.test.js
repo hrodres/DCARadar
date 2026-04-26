@@ -3,7 +3,7 @@ import { calc, escHtml, pf } from './utils.js'
 
 const CFG = {
   dcaBase: 500, multReserva: 8,
-  multN3p: 4, multN3: 3, multN2: 2, multN01: 1, multN1i: 0.5, multN1r: 0.5,
+  multN3p: 4, multN3: 3, multN2: 2, multN01: 1, multN1i: 0.5,
   vixPanic: 30, vixEuph: 13, vstPanic: 30, vstEuph: 13,
   ddMod: -10, ddSev: -20, ddEuph: -0.5,
   rationWarn: 50, rationBrake: 25,

@@ -16,10 +16,10 @@ export const LM = {
 }
 
 export const PROFILES = {
-  conservador:   { label: 'Conservador',   multN3p: 2, multN3: 2, multN2: 1.5, multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Reserva pequeña o horizonte corto' },
-  moderado:      { label: 'Moderado',      multN3p: 4, multN3: 3, multN2: 2,   multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Equilibrio riesgo/oportunidad — recomendado' },
-  agresivo:      { label: 'Agresivo',      multN3p: 6, multN3: 4, multN2: 2,   multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Reserva amplia y horizonte largo' },
-  personalizado: { label: 'Personalizado', multN3p: 4, multN3: 3, multN2: 2,   multN01: 1, multN1i: 0.5, multN1r: 0.5, desc: 'Configura tus propios valores' },
+  conservador:   { label: 'Conservador',   multN3p: 2, multN3: 2, multN2: 1.5, multN01: 1, multN1i: 0.5, desc: 'Reserva pequeña o horizonte corto' },
+  moderado:      { label: 'Moderado',      multN3p: 4, multN3: 3, multN2: 2,   multN01: 1, multN1i: 0.5, desc: 'Equilibrio riesgo/oportunidad — recomendado' },
+  agresivo:      { label: 'Agresivo',      multN3p: 6, multN3: 4, multN2: 2,   multN01: 1, multN1i: 0.5, desc: 'Reserva amplia y horizonte largo' },
+  personalizado: { label: 'Personalizado', multN3p: 4, multN3: 3, multN2: 2,   multN01: 1, multN1i: 0.5, desc: 'Configura tus propios valores' },
 }
 
 export const DEF_CFG = {
@@ -33,7 +33,7 @@ export const DEF_CFG = {
 export function calc(mktRaw, portRaw, cfg) {
   const { urthPrice, sma200, drawdown, vix, vstoxx, hasVstoxx } = mktRaw
   const { reserva, hasReserva, navEur, capital, parts } = portRaw
-  const { dcaBase, multReserva, multN3p, multN3, multN2, multN01, multN1i, multN1r,
+  const { dcaBase, multReserva, multN3p, multN3, multN2, multN01, multN1i,
     vixPanic, vixEuph, vstPanic, vstEuph, ddMod, ddSev, ddEuph, rationWarn, rationBrake } = cfg
 
   const objReserva = dcaBase * multReserva
@@ -68,7 +68,7 @@ export function calc(mktRaw, portRaw, cfg) {
 
   const invCalc    = dcaBase * mult
   const excesoBase = Math.max(0, invCalc - dcaBase)
-  const invRes     = (level === '-1' && cResInc) ? dcaBase * multN1r : 0
+  const invRes     = (level === '-1' && cResInc) ? dcaBase * (1 - multN1i) : 0
 
   let invFinal = invCalc, rationTier = 0, rationAlert = false
   if (hasReserva) {

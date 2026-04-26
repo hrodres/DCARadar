@@ -290,7 +290,7 @@ export default function App() {
   const updCfg = (k, v) => setCfg(c => {
     const next = { ...c, [k]: typeof v === 'string' ? v : pf(v) }
     // If multiplier changed, switch to custom profile
-    if (['multN3p','multN3','multN2','multN01','multN1i','multN1r'].includes(k)) {
+    if (['multN3p','multN3','multN2','multN01','multN1i'].includes(k)) {
       next.profile = 'personalizado'
     }
     return next
@@ -561,8 +561,7 @@ export default function App() {
                   { l: 'Nivel 3 Pleno ×',   k: 'multN3',  c: '#f97316' },
                   { l: 'Nivel 2 Refuerzo ×',k: 'multN2',  c: '#eab308' },
                   { l: 'Nivel 0-1 Base ×',  k: 'multN01', c: '#22c55e' },
-                  { l: 'Nivel -1 Inv. ×',   k: 'multN1i', c: '#3b82f6' },
-                  { l: 'Nivel -1 Res. ×',   k: 'multN1r', c: '#8b5cf6' },
+                  { l: 'Nivel -1 Euforia ×', k: 'multN1i', c: '#3b82f6' },
                 ].map(({ l, k, c }, i, arr) => (
                   <div key={k} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
                     <NumInput dark={dark} label={l} value={cfg[k]} onChange={v => updCfg(k, v)} step={0.5} hint={'= ' + eur(cfg.dcaBase * cfg[k])} accent={c} />
