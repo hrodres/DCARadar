@@ -5,7 +5,7 @@ import VerdictPanel from './components/VerdictPanel.jsx'
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
 
-function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
+async function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
   const { level, invFinal, excesoFinal, rationTier, reservaPost, objReserva,
     hasCartera, breakEven, pctRec, totalParts, newParts, isFirst,
     coverMonths, mult, protocoloActivo, conds, levels } = result
@@ -34,7 +34,6 @@ function generatePDF(result, mktRaw, portRaw, cfg, fetchDate, dark) {
 <meta charset="UTF-8">
 <title>${pdfTitle}</title>
 <style>
-  @page { margin: 1.5cm 2cm; size: A4; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1d1d1f; font-size: 10px; line-height: 1.45; background: white; }
 
@@ -178,16 +177,20 @@ ${hasCartera ? `
   </div>
 </div>` : ''}
 
-<div class="footer">DCA Radar · Herramienta de cálculo personal · No constituye asesoramiento financiero · La inversión conlleva riesgo de pérdida de capital</div>
+<div class="footer">DCA Radar · Herramienta de cálculo personal · No constituye asesoramiento financiero · La inversión conlleva riesgo de pérdida de capital</div>`
 
-<script>window.onload = () => window.print()</script>
-</body>
-</html>`
+  const container = document.createElement('div')
+  container.innerHTML = html
+  document.body.appendChild(container)
 
-  const w = window.open('', '_blank')
-  if (!w) { alert('Permite ventanas emergentes para exportar el PDF.'); return }
-  w.document.write(html)
-  w.document.close()
+  const { default: html2pdf } = await import('html2pdf.js')
+  await html2pdf().set({
+    margin:      [15, 20],
+    filename:    pdfTitle + '.pdf',
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+  }).from(container).save()
+  document.body.removeChild(container)
 }
 
 // ── Copy to Sheets ────────────────────────────────────────────────────────────
