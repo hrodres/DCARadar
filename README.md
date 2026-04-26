@@ -130,6 +130,10 @@ La reserva táctica no es capital ocioso: es liquidez con propósito, desplegada
 - Vitest (tests unitarios de `calc()`)
 - Vercel (frontend + serverless functions)
 
+## Créditos
+
+Proyecto desarrollado íntegramente mediante vibe coding con [Claude Code](https://claude.ai/code) de Anthropic.
+
 ## Aviso
 
 Uso personal exclusivamente. No constituye asesoramiento financiero. La inversión en fondos conlleva riesgo de pérdida de capital.
