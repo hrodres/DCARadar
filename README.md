@@ -17,11 +17,11 @@ Cada mes introduces tus datos y la app determina el **nivel de inversión** bas�
 
 | Nivel | Nombre | Condición | Inversión |
 |---|---|---|---|
-| **-1** | Euforia | VIX/VSTOXX bajo + URTH cerca de máximos | DCA base reducido; excedente a reserva |
-| **0-1** | Base | Mercado normal | DCA base |
-| **2** | Refuerzo | VIX/DD elevado + tendencia bajista | DCA base × 2 |
-| **3** | Pleno | VIX pánico + DD moderado + bajista | DCA base × 3 |
 | **3+** | Crash | VIX pánico + DD severo + bajista | DCA base × 4 |
+| **3** | Pleno | VIX pánico + DD moderado + bajista | DCA base × 3 |
+| **2** | Refuerzo | VIX/DD elevado + tendencia bajista | DCA base × 2 |
+| **0-1** | Base | Mercado normal | DCA base |
+| **-1** | Euforia | VIX/VSTOXX bajo + URTH cerca de máximos | DCA base reducido; excedente a reserva |
 
 El exceso por encima del DCA base sale de la **reserva táctica** — un colchón de liquidez equivalente a varios meses de DCA base, idealmente en fondo monetario.
 
