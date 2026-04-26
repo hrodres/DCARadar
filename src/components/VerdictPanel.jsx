@@ -107,7 +107,7 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
       </div>
 
       <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Señales de mercado</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>Señales de mercado</div>
         <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + cardBorder }}>
           {condItems.map(({ l, ok, detail, neu }, i, arr) => {
             const dot = neu ? '#8e8e93' : ok ? '#22c55e' : '#ef4444'
@@ -127,7 +127,7 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
 
       {hasCartera && (
         <div style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 16, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: textSub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 }}>Tu cartera</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: textSub, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>Tu cartera</div>
           {/* Métricas destacadas */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             {[

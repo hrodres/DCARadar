@@ -233,8 +233,8 @@ function Card({ children, cardBg, cardBorder, style: sx = {} }) {
   )
 }
 
-function SectionTitle({ text, color }) {
-  return <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>{text}</div>
+function SectionTitle({ text, color, mb = 12 }) {
+  return <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: mb }}>{text}</div>
 }
 export default function App() {
   const [dark, setDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches || false)
@@ -401,9 +401,9 @@ export default function App() {
 
               {/* Market card */}
               <Card {...cardProps}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <SectionTitle text="Mercado" color={T.textSub} />
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: -12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <SectionTitle text="Mercado" color={T.textSub} mb={0} />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {fs === 'ok' && fetchDate && <span style={{ fontSize: 11, color: T.textSub }}>a {fetchDate}</span>}
                     <button onClick={doFetch} disabled={fs === 'loading'} style={{
                       background: fs === 'ok' ? (dark ? '#0f1f13' : '#f0fdf4') : T.text,
@@ -442,9 +442,7 @@ export default function App() {
 
               {/* Portfolio card */}
               <Card {...cardProps}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <SectionTitle text="Cartera" color={T.textSub} />
-                </div>
+                <SectionTitle text="Cartera" color={T.textSub} />
                 <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
                   {[
                     { label: 'Reserva táctica', value: reserva, onChange: setReserva, unit: '€', step: 100, hint: 'Objetivo: ' + eur(cfg.dcaBase * cfg.multReserva) + ' · Mantener en fondo monetario' },
