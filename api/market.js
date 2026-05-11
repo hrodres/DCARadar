@@ -13,20 +13,23 @@ export default async function handler(req, res) {
       'Accept': 'application/json',
     };
 
-    // Fetch URTH (2 años para calcular SMA200 y drawdown)
-    const urthUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/URTH?interval=1d&range=2y';
-    const vixUrl  = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d';
+    const urthUrl  = 'https://query1.finance.yahoo.com/v8/finance/chart/URTH?interval=1d&range=2y';
+    const vixUrl   = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d';
+    const vstoxxUrl = 'https://www.stoxx.com/document/Indices/Current/HistoricalData/h_v2tx.txt';
 
-    const [urthResp, vixResp] = await Promise.all([
-      fetch(urthUrl, { headers }),
-      fetch(vixUrl,  { headers }),
+    const [urthResp, vixResp, vstoxxResp] = await Promise.all([
+      fetch(urthUrl,  { headers }),
+      fetch(vixUrl,   { headers }),
+      fetch(vstoxxUrl),
     ]);
 
-    if (!urthResp.ok) throw new Error('URTH fetch failed: ' + urthResp.status);
-    if (!vixResp.ok)  throw new Error('VIX fetch failed: '  + vixResp.status);
+    if (!urthResp.ok)    throw new Error('URTH fetch failed: '    + urthResp.status);
+    if (!vixResp.ok)     throw new Error('VIX fetch failed: '     + vixResp.status);
+    if (!vstoxxResp.ok)  throw new Error('VSTOXX fetch failed: '  + vstoxxResp.status);
 
-    const urthData = await urthResp.json();
-    const vixData  = await vixResp.json();
+    const urthData   = await urthResp.json();
+    const vixData    = await vixResp.json();
+    const vstoxxText = await vstoxxResp.text();
 
     // Procesar URTH
     const urthResult = urthData.chart.result[0];
@@ -46,11 +49,17 @@ export default async function handler(req, res) {
     const vixPrices = vixData.chart.result[0].indicators.quote[0].close.filter(Boolean);
     const vix       = vixPrices[vixPrices.length - 1];
 
+    const vstoxxLines = vstoxxText.trim().split('\n');
+    const lastVstLine = vstoxxLines[vstoxxLines.length - 1];
+    const vstoxxParts = lastVstLine.split(';');
+    const vstoxx = parseFloat(vstoxxParts[2].replace(',', '.'));
+
     res.status(200).json({
       urthPrice,
       sma200,
       drawdown,
       vix,
+      vstoxx,
       lastDate,
       timestamp: new Date().toISOString(),
     });

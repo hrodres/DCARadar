@@ -7,7 +7,7 @@ export default function VerdictPanel({ result, cfg, mktRaw, dark }) {
     const textSub = dark ? '#8e8e93' : '#6e6e73'
     const steps = [
       { n: '1', label: 'Pulsa', detail: '⟳ Fetch para cargar URTH, SMA200, Drawdown y VIX automáticamente' },
-      { n: '2', label: 'Introduce', detail: 'VSTOXX manualmente si lo tienes (opcional)' },
+      { n: '2', label: 'Auto', detail: 'VSTOXX se carga automáticamente (puedes editarlo)' },
       { n: '3', label: 'Añade', detail: 'tu reserva táctica para activar el protocolo completo' },
     ]
     return (

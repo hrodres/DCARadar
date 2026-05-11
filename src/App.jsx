@@ -457,7 +457,7 @@ export default function App() {
                     { label: 'SMA 200', value: mkt.sma200, onChange: v => setMkt(m => ({ ...m, sma200: v })), unit: '$', step: 0.5 },
                     { label: 'Drawdown', value: mkt.drawdown, onChange: v => setMkt(m => ({ ...m, drawdown: v })), unit: '%', step: 0.1, hint: 'Negativo, ej: −1.3' },
                     { label: 'VIX', value: mkt.vix, onChange: v => setMkt(m => ({ ...m, vix: v })), step: 0.1, hint: 'cboe.com' },
-                    { label: 'VSTOXX', value: mkt.vstoxx, onChange: v => setMkt(m => ({ ...m, vstoxx: v })), step: 0.1, hint: 'optional', optional: true },
+                    { label: 'VSTOXX', value: mkt.vstoxx, onChange: v => setMkt(m => ({ ...m, vstoxx: v })), step: 0.1, hint: 'stoxx.com (auto)', optional: true },
                   ].map((f, i, arr) => (
                     <div key={f.label} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
                       <NumInput dark={dark} {...f} />
