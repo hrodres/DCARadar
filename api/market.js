@@ -53,6 +53,7 @@ export default async function handler(req, res) {
     const lastVstLine = vstoxxLines[vstoxxLines.length - 1];
     const vstoxxParts = lastVstLine.split(';');
     const vstoxx = parseFloat(vstoxxParts[2].replace(',', '.'));
+    const vstoxxDate = vstoxxParts[0];
 
     res.status(200).json({
       urthPrice,
@@ -61,6 +62,7 @@ export default async function handler(req, res) {
       vix,
       vstoxx,
       lastDate,
+      vstoxxDate,
       timestamp: new Date().toISOString(),
     });
 

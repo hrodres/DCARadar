@@ -246,6 +246,7 @@ export default function App() {
   const [fs, setFs]     = useState('idle')
   const [ferr, setFerr] = useState('')
   const [fetchDate, setFetchDate] = useState('')
+  const [vstoxxDate, setVstoxxDate] = useState('')
 
   // Portfolio
   const [navEur,  setNavEur]  = useState('')
@@ -321,6 +322,7 @@ export default function App() {
         vstoxx:    d.vstoxx != null ? String(Math.round(d.vstoxx * 100) / 100) : m.vstoxx,
       }))
       setFetchDate(d.lastDate || todayStr())
+      setVstoxxDate(d.vstoxxDate || '')
       setFs('ok')
     } catch (e) { setFs('error'); setFerr(e.message) }
   }, [])
@@ -438,7 +440,7 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <SectionTitle text="Mercado" color={T.textSub} mb={0} />
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {fs === 'ok' && fetchDate && <span style={{ fontSize: 11, color: T.textSub }}>a {fetchDate}</span>}
+                    {fs === 'ok' && fetchDate && <span style={{ fontSize: 11, color: T.textSub }}>Cierre {fetchDate}</span>}
                     <button onClick={doFetch} disabled={fs === 'loading'} style={{
                       background: fs === 'ok' ? (dark ? '#0f1f13' : '#f0fdf4') : T.text,
                       border: '1px solid ' + (fs === 'ok' ? '#16a34a' : 'transparent'),
@@ -453,14 +455,19 @@ export default function App() {
                 {fs === 'error' && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>Error: {ferr}</div>}
                 <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.cardBorder }}>
                   {[
-                    { label: 'URTH Precio', value: mkt.urthPrice, onChange: v => setMkt(m => ({ ...m, urthPrice: v })), unit: '$', step: 0.5 },
-                    { label: 'SMA 200', value: mkt.sma200, onChange: v => setMkt(m => ({ ...m, sma200: v })), unit: '$', step: 0.5 },
-                    { label: 'Drawdown', value: mkt.drawdown, onChange: v => setMkt(m => ({ ...m, drawdown: v })), unit: '%', step: 0.1, hint: 'Negativo, ej: −1.3' },
-                    { label: 'VIX', value: mkt.vix, onChange: v => setMkt(m => ({ ...m, vix: v })), step: 0.1, hint: 'cboe.com' },
+                    { label: 'URTH Precio', value: mkt.urthPrice, onChange: v => setMkt(m => ({ ...m, urthPrice: v })), unit: '$', step: 0.5, hint: 'Yahoo Finance' },
+                    { label: 'SMA 200', value: mkt.sma200, onChange: v => setMkt(m => ({ ...m, sma200: v })), unit: '$', step: 0.5, hint: 'Yahoo Finance' },
+                    { label: 'Drawdown', value: mkt.drawdown, onChange: v => setMkt(m => ({ ...m, drawdown: v })), unit: '%', step: 0.1, hint: 'Yahoo Finance' },
+                    { label: 'VIX', value: mkt.vix, onChange: v => setMkt(m => ({ ...m, vix: v })), step: 0.1, hint: 'Yahoo Finance' },
                     { label: 'VSTOXX', value: mkt.vstoxx, onChange: v => setMkt(m => ({ ...m, vstoxx: v })), step: 0.1, hint: 'stoxx.com (auto)', optional: true },
                   ].map((f, i, arr) => (
                     <div key={f.label} style={{ padding: '0 16px', background: T.cardBg, borderBottom: i < arr.length - 1 ? '1px solid ' + T.cardBorder : 'none' }}>
                       <NumInput dark={dark} {...f} />
+                      {f.label === 'VSTOXX' && vstoxxDate && vstoxxDate !== fetchDate && (
+                        <div style={{ fontSize: 11, color: T.textSub, marginTop: -6, marginBottom: 8, paddingLeft: 0 }}>
+                          Cierre {vstoxxDate}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {mkt.urthPrice && mkt.sma200 && (
